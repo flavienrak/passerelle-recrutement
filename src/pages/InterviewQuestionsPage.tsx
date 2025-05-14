@@ -1,216 +1,472 @@
 import classNames from 'classnames';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, arrayUnion } from 'firebase/firestore';
 import { Mic, StopCircle } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Layout from '../components/Layout';
-import { useUser } from '../context/UserContext';
+import { useUser } from '../providers/User.provider';
 import { db } from '../lib/firebase';
-
-interface Question {
-    text: string;
-    helper: string;
-}
-
-const questions: Question[] = [
-    {
-        text: 'Quel est ton dernier (ou actuel) poste, que fais/faisais-tu au quotidien dans cette expérience ?',
-        helper: 'Décrire les missions concrètes, tâches principales.',
-    },
-    {
-        text: 'Quelles principales priorités ou urgences devais-tu gérer ?',
-        helper: 'Mettre en lumière ce qui est important',
-    },
-    {
-        text: 'Peux-tu citer une action précise que tu as menée et dont tu es fier(e) ?',
-        helper: 'Faire ressortir un résultat concret, même petit.',
-    },
-    {
-        text: 'Avec qui travaillais-tu principalement ? (clients, équipe, manager…)',
-        helper: 'Clients, équipe, manager..➔ contexte relationnel réel',
-    },
-    {
-        text: "Qu'as-tu appris de pratique ou de nouveau pendant cette expérience ?",
-        helper: 'Des compétences que tu as développer ou consolider',
-    },
-    {
-        text: 'As-tu un autre point important que tu aimerais partager au recruteur ?',
-        helper: 'Tu peux raconter ton expérience précédente ou tout autre élément pertinent',
-    },
-];
+import axios from 'axios';
+import { useSelector } from 'react-redux';
+import { RootState } from '../redux/store';
+import { extractJson } from '../lib/function';
+import { chat } from '../lib/openai';
+import {
+  competenceAnonym,
+  cvProcessing,
+  diplomeAnonym,
+  experienceAnonym,
+  formationAnonym,
+  responseAnonym,
+} from '../lib/prompts';
+import { interviewQuestions } from '../lib/constants';
 
 const InterviewQuestionsPage: React.FC = () => {
-    const [currentQuestion, setCurrentQuestion] = useState(0);
-    const [answer, setAnswer] = useState('');
-    const [isRecording, setIsRecording] = useState(false);
-    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-    const [answers, setAnswers] = useState<{ answer: string; question: string }[]>([]);
+  const { interviews, cv } = useSelector((state: RootState) => state.user);
+  const { email } = useSelector((state: RootState) => state.persistInfos);
 
-    const navigate = useNavigate();
-    const { userData, updateUserData } = useUser();
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answer, setAnswer] = useState('');
+  const [loadingTranslation, setLoadingTranslation] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
+    null
+  );
+  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
 
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-            const audioChunks: BlobPart[] = [];
+  const navigate = useNavigate();
+  const { isLoading } = useUser();
 
-            recorder.ondataavailable = (e) => {
-                audioChunks.push(e.data);
-            };
-
-            recorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                // Here you would typically upload the audio file
-                console.log('Audio recording completed', audioBlob);
-            };
-
-            setMediaRecorder(recorder);
-            recorder.start();
-            setIsRecording(true);
-        } catch (error) {
-            console.error('Error accessing microphone:', error);
-        }
-    };
-
-    const stopRecording = () => {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach((track) => track.stop());
-            setIsRecording(false);
-            handleNext();
-        }
-    };
-
-    const handleNext = async () => {
-        if (currentQuestion < questions.length - 1) {
-            setCurrentQuestion(currentQuestion + 1);
-            setAnswers((prev) => [
-                ...prev,
-                {
-                    answer,
-                    question: questions[currentQuestion].text,
-                    questionNumber: currentQuestion,
-                },
-            ]);
-            setAnswer('');
-        } else {
-            // Last question completed, move to test
-            updateUserData({
-                completedSteps: {
-                    interviewCompleted: true,
-                },
-            });
-
-            const interviewsDocRef = doc(db, 'interviews', userData.email);
-            await setDoc(interviewsDocRef, {
-                answers: [
-                    ...answers,
-                    {
-                        answer,
-                        question: questions[currentQuestion].text,
-                        questionNumber: currentQuestion,
-                    },
-                ],
-                email: userData.email,
-            });
-
+  useEffect(() => {
+    if (!isLoading) {
+      if (!email || !cv) {
+        navigate('/');
+      } else {
+        (async () => {
+          if (interviews.length === interviewQuestions.length) {
             navigate('/test');
+          } else {
+            setCurrentQuestion(interviews.length);
+          }
+
+          if (
+            cv.completedSteps.cvUploaded &&
+            !cv.completedSteps.anonymisation
+          ) {
+            (async () => {
+              let messageContent = 'Contenu du CV :\n';
+
+              if (cv.diplomes && cv.diplomes.length > 0) {
+                messageContent += `\nDiplômes :\n${cv.diplomes
+                  .map((c) => c.content)
+                  .join('\n')}`;
+              }
+
+              if (cv.formations && cv.formations.length > 0) {
+                messageContent += `\nFormations :\n${cv.formations
+                  .map((c) => c.content)
+                  .join('\n')}`;
+              }
+
+              if (cv.competences && cv.competences.length > 0) {
+                messageContent += `\nCompétences :\n${cv.competences
+                  .map((c) => c.content)
+                  .join('\n')}`;
+              }
+
+              if (cv.experiences && cv.experiences.length > 0) {
+                messageContent += `\nExpériences :\n${cv.experiences
+                  .map((c) => c.content)
+                  .join('\n')}`;
+              }
+
+              // CV PROCESSING
+              const openaiResponse = await chat([
+                { role: 'system', content: cvProcessing.trim() },
+                { role: 'user', content: messageContent.trim() },
+              ]);
+
+              if (openaiResponse.content) {
+                const itemData: {
+                  presentation: string;
+                  diplomes: string[];
+                  formations: string[];
+                  competences: string[];
+                  experiences: string[];
+                } = extractJson(openaiResponse.content);
+
+                await setDoc(
+                  doc(db, 'cvs', email),
+                  {
+                    email,
+                    presentation: itemData.presentation,
+                    diplomes: itemData.diplomes,
+                    formations: itemData.formations,
+                    competences: itemData.competences,
+                    experiences: itemData.experiences,
+                  },
+                  { merge: true }
+                );
+
+                // DIPLOMES ANONYME
+                if (itemData.diplomes.length > 0) {
+                  const openaiItemResponse = await chat([
+                    { role: 'system', content: diplomeAnonym.trim() },
+                    { role: 'user', content: messageContent.trim() },
+                  ]);
+
+                  if (openaiItemResponse.content) {
+                    const itemData: string[] = extractJson(
+                      openaiItemResponse.content
+                    );
+
+                    await setDoc(
+                      doc(db, 'cvs', email),
+                      { email, diplomes_anonym: itemData },
+                      { merge: true }
+                    );
+                  }
+                }
+
+                // FORMATION ANONYME
+                if (itemData.formations.length > 0) {
+                  const openaiItemResponse = await chat([
+                    { role: 'system', content: formationAnonym.trim() },
+                    { role: 'user', content: messageContent.trim() },
+                  ]);
+
+                  if (openaiItemResponse.content) {
+                    const itemData: { content: string } = extractJson(
+                      openaiItemResponse.content
+                    );
+
+                    await setDoc(
+                      doc(db, 'cvs', email),
+                      { email, formation_anonym: itemData.content },
+                      { merge: true }
+                    );
+                  }
+                }
+
+                // COMPETENCES ANONYME
+                if (itemData.competences.length > 0) {
+                  const openaiItemResponse = await chat([
+                    { role: 'system', content: competenceAnonym.trim() },
+                    { role: 'user', content: messageContent.trim() },
+                  ]);
+
+                  if (openaiItemResponse.content) {
+                    const itemData: { content: string } = extractJson(
+                      openaiItemResponse.content
+                    );
+
+                    await setDoc(
+                      doc(db, 'cvs', email),
+                      { email, competence_anonym: itemData.content },
+                      { merge: true }
+                    );
+                  }
+                }
+
+                // EXPERIENCES ANONYME
+                if (itemData.experiences.length > 0) {
+                  const openaiExperienceResponse = await chat([
+                    { role: 'system', content: experienceAnonym.trim() },
+                    { role: 'user', content: messageContent.trim() },
+                  ]);
+
+                  if (openaiExperienceResponse.content) {
+                    const itemData: {
+                      title: string;
+                      date: string;
+                      company: string;
+                      description: string;
+                    }[] = extractJson(openaiExperienceResponse.content);
+
+                    await setDoc(
+                      doc(db, 'cvs', email),
+                      { email, experiences_anonym: itemData },
+                      { merge: true }
+                    );
+                  }
+                }
+
+                await setDoc(
+                  doc(db, 'cvs', email),
+                  { email, completedSteps: { anonymisation: true } },
+                  { merge: true }
+                );
+              }
+            })();
+          }
+        })();
+      }
+    }
+  }, [isLoading, email, interviews, cv]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const audioChunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (e) => {
+        audioChunks.push(e.data);
+      };
+
+      recorder.onstop = () => {};
+
+      setMediaRecorder(recorder);
+      recorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+    }
+  };
+
+  const stopRecording = async () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+      setIsRecording(false);
+
+      mediaRecorder.ondataavailable = async (event) => {
+        const audioBlob = new Blob([event.data], { type: 'audio/webm' }); // ou 'audio/mp3' si supporté
+        const audioFile = new File([audioBlob], 'response.webm'); // nom du fichier obligatoire
+
+        // Envoi à OpenAI pour transcription
+        const formData = new FormData();
+        formData.append('file', audioFile);
+        formData.append('model', 'whisper-1'); // modèle requis
+        formData.append('language', 'fr'); // facultatif, pour forcer la langue
+
+        try {
+          setLoadingTranslation(true);
+          const response = await axios.post(
+            'https://api.openai.com/v1/audio/transcriptions',
+            formData,
+            {
+              headers: {
+                Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+                'Content-Type': 'multipart/form-data',
+              },
+            }
+          );
+
+          setLoadingTranslation(false);
+          handleSubmit({ audioAnswer: response.data.text });
+        } catch (error) {
+          console.error('Erreur transcription OpenAI:', error);
         }
-    };
+      };
+    }
+  };
 
-    return (
-        <Layout currentStep={2}>
-            <div className="flex flex-col items-center justify-center flex-1 px-4 h-[calc(100vh-theme(spacing.16))]">
-                <div className="w-full max-w-2xl">
-                    <div className="text-center mb-6">
-                        <h1 className="text-4xl font-bold mb-3">Votre expérience</h1>
-                        <p className="text-gray-300">
-                            Partagez votre parcours professionnel
-                        </p>
-                    </div>
+  const handleSubmit = async ({
+    event,
+    audioAnswer,
+  }: {
+    event?: React.FormEvent<HTMLFormElement>;
+    audioAnswer?: string;
+  }) => {
+    if (event) {
+      event.preventDefault();
+    }
 
-                    <Card className="bg-gradient-to-br from-[#1F2437] via-[#161A2A] to-[#0A0E17] backdrop-blur-lg border-[#FF6B00]/10 shadow-[0_0_30px_rgba(255,107,0,0.1)] h-[550px] flex flex-col">
-                        <div className="flex flex-col h-full">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-2xl font-bold text-white">
-                                        Q{currentQuestion + 1}
-                                    </span>
-                                    <span className="text-sm text-gray-400">sur 6</span>
-                                </div>
-                                <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-[#FF6B00] to-[#FF8124] transition-all duration-500 ease-out"
-                                        style={{
-                                            width: `${((currentQuestion + 1) / 6) * 100}%`,
-                                        }}
-                                    />
-                                </div>
-                            </div>
+    if (
+      answer.trim().length > 0 ||
+      (audioAnswer && audioAnswer.trim().length > 0)
+    ) {
+      setIsLoadingResponse(true);
 
-                            <h2 className="text-2xl font-medium text-white mb-3 leading-relaxed">
-                                {questions[currentQuestion].text}
-                            </h2>
-                            <p className="text-[#FF6B00] font-medium text-base bg-[#FF6B00]/5 rounded-lg px-4 py-2 inline-block">
-                                {questions[currentQuestion].helper}
-                            </p>
+      const interviewsDocRef = doc(db, 'interviews', email);
+      const openaiResponse = await chat([
+        { role: 'system', content: responseAnonym.trim() },
+        {
+          role: 'user',
+          content: `
+            Question : ${interviewQuestions[currentQuestion].text}\n 
+            Indication : ${interviewQuestions[currentQuestion].helper}\n
+            Réponse : ${answer ? answer : audioAnswer}
+          `.trim(),
+        },
+      ]);
 
-                            <div className="flex-1 flex flex-col mt-6">
-                                <textarea
-                                    value={answer}
-                                    onChange={(e) => setAnswer(e.target.value)}
-                                    className={`flex-1 min-h-[120px] bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 transition-all duration-300 resize-none ${isRecording ? 'opacity-50' : ''} hover:bg-[#0A0E17]/90`}
-                                    placeholder="Votre réponse..."
-                                    disabled={isRecording}
-                                />
-                                <div className="mt-4 relative h-[104px]">
-                                    <div className="absolute inset-0 space-y-3">
-                                        <button
-                                            onClick={
-                                                isRecording
-                                                    ? stopRecording
-                                                    : startRecording
-                                            }
-                                            className={`w-full rounded-lg flex items-center justify-center gap-2 py-3 text-lg font-medium bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/20 transition-all duration-300 ${
-                                                isRecording &&
-                                                'animate-[pulse_2s_ease-in-out_infinite] bg-[length:200%_200%] bg-[0%_0%]'
-                                            }`}
-                                        >
-                                            {isRecording ? (
-                                                <>
-                                                    <StopCircle className="w-6 h-6" />
-                                                    <span>Valider ma réponse</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Mic className="w-6 h-6" />
-                                                    <span>Enregistrer ma réponse</span>
-                                                </>
-                                            )}
-                                        </button>
-                                        <button
-                                            onClick={handleNext}
-                                            disabled={!answer.trim()}
-                                            className={classNames(
-                                                'w-full rounded-lg flex items-center justify-center gap-2 py-3 text-lg font-medium bg-gradient-to-r from-[#FF6B00] to-[#FF8124] text-white hover:from-[#FF8124] hover:to-[#FF9346] shadow-lg shadow-[#FF6B00]/20 transition-all duration-300',
-                                                !answer.trim() &&
-                                                    'opacity-50 cursor-not-allowed',
-                                                isRecording && 'opacity-0',
-                                            )}
-                                        >
-                                            Question suivante
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
+      if (openaiResponse.content) {
+        const itemData: { content: string } = extractJson(
+          openaiResponse.content
+        );
+
+        await setDoc(
+          interviewsDocRef,
+          {
+            answers: arrayUnion({
+              answer: audioAnswer ? audioAnswer.trim() : answer.trim(),
+              answer_anonym: itemData.content,
+              question: interviewQuestions[currentQuestion].text,
+              questionNumber: currentQuestion,
+            }),
+          },
+          { merge: true }
+        );
+      }
+
+      if (currentQuestion < interviewQuestions.length - 1) {
+        setAnswer('');
+        setCurrentQuestion(currentQuestion + 1);
+      } else {
+        await setDoc(
+          doc(db, 'cvs', email),
+          { email, completedSteps: { interviewCompleted: true } },
+          { merge: true }
+        );
+
+        navigate('/test');
+      }
+
+      setIsLoadingResponse(false);
+    }
+  };
+
+  return (
+    <Layout currentStep={2}>
+      <div className="flex flex-col items-center justify-center flex-1 px-4 h-[calc(100vh-theme(spacing.16))]">
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-6">
+            <h1 className="text-4xl font-bold mb-3">Votre expérience</h1>
+            <p className="text-gray-300">
+              Partagez votre parcours professionnel
+            </p>
+          </div>
+
+          <Card className="bg-gradient-to-br from-[#1F2437] via-[#161A2A] to-[#0A0E17] backdrop-blur-lg border-[#FF6B00]/10 shadow-[0_0_30px_rgba(255,107,0,0.1)] h-[550px] flex flex-col">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-white">
+                    Q{currentQuestion + 1}
+                  </span>
+                  <span className="text-sm text-gray-400">sur 6</span>
                 </div>
+                <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#FF6B00] to-[#FF8124] transition-all duration-500 ease-out"
+                    style={{
+                      width: `${((currentQuestion + 1) / 6) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-medium text-white mb-3 leading-relaxed">
+                {interviewQuestions[currentQuestion].text}
+              </h2>
+              <p className="text-[#FF6B00] font-medium text-base bg-[#FF6B00]/5 rounded-lg px-4 py-2 inline-block">
+                {interviewQuestions[currentQuestion].helper}
+              </p>
+
+              <form
+                onSubmit={(event) => handleSubmit({ event })}
+                className="flex-1 flex flex-col mt-6"
+              >
+                <textarea
+                  value={answer}
+                  onChange={(event) => setAnswer(event.target.value)}
+                  className={`flex-1 min-h-[120px] bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 transition-all duration-300 resize-none ${
+                    isRecording ? 'opacity-50' : ''
+                  } hover:bg-[#0A0E17]/90`}
+                  placeholder="Votre réponse..."
+                  disabled={isRecording}
+                />
+                <div className="mt-4 relative h-[104px]">
+                  <div className="absolute inset-0 space-y-3">
+                    <button
+                      onClick={(event) => {
+                        event.preventDefault();
+                        if (isRecording) {
+                          stopRecording();
+                        } else {
+                          startRecording();
+                        }
+                      }}
+                      className={`w-full rounded-lg flex items-center justify-center gap-2 py-3 text-lg font-medium bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/20 transition-all duration-300 ${
+                        isRecording &&
+                        'animate-[pulse_2s_ease-in-out_infinite] bg-[length:200%_200%] bg-[0%_0%]'
+                      }`}
+                    >
+                      {isRecording ? (
+                        <>
+                          <StopCircle className="w-6 h-6" />
+                          <span>Valider ma réponse</span>
+                        </>
+                      ) : loadingTranslation ? (
+                        <p className="flex items-center justify-center gap-2 pointer-events-none">
+                          <svg
+                            aria-hidden="true"
+                            role="status"
+                            className="inline w-6 h-6 animate-spin"
+                            viewBox="0 0 100 101"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                              fill="#E5E7EB"
+                            />
+                            <path
+                              d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                              fill="currentColor"
+                            />
+                          </svg>
+                          <span>Traitement en cours...</span>
+                        </p>
+                      ) : (
+                        <>
+                          <Mic className="w-6 h-6" />
+                          <span>Enregistrer ma réponse</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!answer.trim()}
+                      className={classNames(
+                        'w-full rounded-lg flex items-center justify-center gap-2 py-3 text-lg font-medium bg-gradient-to-r from-[#FF6B00] to-[#FF8124] text-white hover:from-[#FF8124] hover:to-[#FF9346] shadow-lg shadow-[#FF6B00]/20 transition-all duration-300',
+                        !answer.trim() && 'opacity-50 cursor-not-allowed',
+                        isRecording && 'opacity-0'
+                      )}
+                    >
+                      {isLoadingResponse && (
+                        <svg
+                          aria-hidden="true"
+                          role="status"
+                          className="inline w-6 h-6 animate-spin"
+                          viewBox="0 0 100 101"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                            fill="#E5E7EB"
+                          />
+                          <path
+                            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      )}
+                      <span>Question suivante</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
-        </Layout>
-    );
+          </Card>
+        </div>
+      </div>
+    </Layout>
+  );
 };
 
 export default InterviewQuestionsPage;

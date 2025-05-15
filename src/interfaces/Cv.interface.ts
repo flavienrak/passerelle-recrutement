@@ -1,4 +1,6 @@
 export interface CvInterface {
+  cvContent: string;
+  presentation: string;
   diplomes: { content: string; order: number }[];
   formations: { content: string; order: number }[];
   competences: { content: string; order: number }[];
@@ -12,9 +14,10 @@ export interface CvInterface {
     company: string;
     description: string;
   }[];
-  completedSteps: {
+  completedSteps?: {
     cvUploaded: boolean;
-    anonymisation?: boolean;
-    prequalificationCompleted?: boolean;
+    anonymisation: boolean;
+    interviewCompleted: boolean;
+    testCompleted: boolean;
   };
 }

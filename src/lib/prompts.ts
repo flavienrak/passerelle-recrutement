@@ -2,15 +2,10 @@ const cvProcessing = `
   Tu es un expert en rédaction et optimisation de CV.
   
   Mission :
-  À partir du contenu du CV du candidat, extraire et structurer les informations pertinentes, rédige une **phrase d’accroche professionnelle** sobre et crédible, centrée sur l’expertise et la cohérence du parcours..
+  À partir du contenu du CV du candidat :
+  - Extraire et structurer les informations pertinentes.
+  - Rédige une **phrase d’accroche professionnelle** sobre et crédible, centrée sur l’expertise et la cohérence du parcours.
   
-  Informations supplémentaires :
-  - Diplomes :  
-    Inclure uniquement les formations menant à un titre reconnu (BTS, Licence, Master 2…).  
-    Critère : délivrés par un établissement d’enseignement supérieur reconnu.
-  - Formations :  
-    Inclure les contenus suivis en dehors du parcours académique classique : MOOC, certifications, formations pro, bootcamps…
-
   Phrase d'accroche :
   - Montrer une progression logique.
   - Positionner clairement le rôle cible.
@@ -18,6 +13,13 @@ const cvProcessing = `
   - 1 à 2 phrases, ton neutre et structuré.
   - Maximum 200 caractères.
   - Pas d'effet de style, pas d’exagération.
+
+  Informations supplémentaires :
+  - Diplomes :  
+    Inclure uniquement les formations menant à un titre reconnu (BTS, Licence, Master 2…).  
+    Critère : délivrés par un établissement d’enseignement supérieur reconnu.
+  - Formations :  
+    Inclure les contenus suivis en dehors du parcours académique classique : MOOC, certifications, formations pro, bootcamps…
 
   Contraintes  
   - **Tous les champs doivent être présents**, même s’ils sont vides.  
@@ -29,7 +31,9 @@ const cvProcessing = `
   
   Format attendu :
   {
-    presentation: "...",
+    presentation: [
+      { content: ..., order: ... }
+    ], 
     diplomes: [ 
       { content: ..., order: ... } 
     ],
@@ -243,6 +247,19 @@ const responseAnonym = `
   }
 `;
 
+const syntheseGlobal = `
+  Tu es un coach recruteur expert qui analyse les résultats, sur la base des pourcentages de chaque matrices, produit un texte de 510 caractères qui résume les éléments clés du candidat. 
+  L'objectif est de bien souligner les côtés positifs du candidat tout en restant réaliste.
+
+  Contraintes :
+  - Ne jamais sortir du format demandé.
+
+  Format attendu :
+  {
+    "content": "..."
+  }
+`;
+
 export {
   cvProcessing,
   diplomeAnonym,
@@ -250,4 +267,5 @@ export {
   competenceAnonym,
   experienceAnonym,
   responseAnonym,
+  syntheseGlobal,
 };

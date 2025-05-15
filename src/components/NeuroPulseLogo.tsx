@@ -1,8 +1,9 @@
 import React from 'react';
+
 import { Brain } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const NeuroPulseLogo = () => {
+export default function NeuroPulseLogo() {
   return (
     <Link to="/">
       <div className="flex items-center">
@@ -17,6 +18,4 @@ const NeuroPulseLogo = () => {
       </div>
     </Link>
   );
-};
-
-export default NeuroPulseLogo;
+}

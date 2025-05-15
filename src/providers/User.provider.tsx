@@ -1,11 +1,6 @@
+import React from 'react';
+
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import React, {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
 import { db } from '../lib/firebase';
 import { UserInterface } from '../interfaces/User.interface';
 import { useDispatch, useSelector } from 'react-redux';
@@ -14,7 +9,6 @@ import { RootState } from '../redux/store';
 import { CvInterface } from '../interfaces/Cv.interface';
 import { InterviewInterface } from '../interfaces/Interview.interface';
 import { updateUserReducer } from '../redux/slices/user.slice';
-import { TestResponseInterface } from '../interfaces/TestResponse.interface';
 
 interface UserContextType {
   isLoading: boolean;
@@ -37,22 +31,35 @@ const initialUserData: UserInterface = {
   },
 };
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+const UserContext = React.createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider: React.FC<{ children: ReactNode }> = ({
+export const useUser = (): UserContextType => {
+  const context = React.useContext(UserContext);
+
+  if (context === undefined) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+
+  return context;
+};
+
+export default function UserProvider({
   children,
-}) => {
+}: {
+  children: React.ReactNode;
+}) {
   const { email } = useSelector((state: RootState) => state.persistInfos);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [userData, setUserData] = useState<UserInterface>(initialUserData);
-  const [isLoading, setIsLoading] = useState(true);
+  const [userData, setUserData] =
+    React.useState<UserInterface>(initialUserData);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const notProtectedPaths = ['/cv-upload'];
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!email && !notProtectedPaths.includes(location.pathname)) {
       setIsLoading(false);
       navigate('/');
@@ -83,9 +90,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
         const testsDocSnap = await getDoc(testsDocRef);
 
         if (testsDocSnap.exists()) {
-          const data: { answers: TestResponseInterface[] } =
-            testsDocSnap.data();
-          dispatch(updateUserReducer({ tests: data.answers }));
+          const data = testsDocSnap.data();
+          dispatch(updateUserReducer({ tests: data }));
         }
 
         setIsLoading(false);
@@ -121,14 +127,4 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
       {children}
     </UserContext.Provider>
   );
-};
-
-export const useUser = (): UserContextType => {
-  const context = useContext(UserContext);
-  if (context === undefined) {
-    throw new Error('useUser must be used within a UserProvider');
-  }
-  return context;
-};
-
-export default UserContext;
+}

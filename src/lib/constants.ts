@@ -489,9 +489,318 @@ const syntheseEvaluation = [
   },
 ];
 
+const initialMatrice = [
+  { id: 1, value: [6, 13], opt: 10, result: 0 },
+  { id: 2, value: [10], opt: 8, result: 0 },
+  { id: 3, value: [7, 11], opt: 6, result: 0 },
+  { id: 4, value: [9, 12], opt: 10, result: 0 },
+  { id: 5, value: [11], opt: 12, result: 0 },
+  { id: 6, value: [14], opt: 10, result: 0 },
+  { id: 7, value: [8, 15], opt: 6, result: 0 },
+];
+
+const matriceSynthese = [
+  {
+    id: 1,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Identifie rapidement les enjeux clés. Agit avec pertinence sans se disperser. Haut niveau de priorisation naturelle.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Bonne capacité de ciblage, mais peut parfois perdre en efficacité face à des priorités multiples ou mal définies.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Dispose d’un repérage global mais peut manquer de clarté stratégique. Gagne à être guidé dans l’ordre des priorités.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Besoin d’un environnement structuré pour distinguer l’essentiel. Potentiel à valoriser avec un cadre clair.',
+      },
+    ],
+  },
+  {
+    id: 2,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Pose des diagnostics fiables, même sous pression. Bonne lecture des contextes complexes.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Analyse solide dans les situations connues. Peut hésiter à trancher quand les repères sont flous.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Compréhension des situations globalement cohérente mais manque de régularité. Apporte plus sous supervision.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Réagit mieux avec un cadre rassurant. L’analyse s’affine dans un environnement soutenant et balisé.',
+      },
+    ],
+  },
+  {
+    id: 3,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Capte rapidement les enjeux sous-jacents. Bonne capacité à sortir de son cadre et à enrichir les échanges.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Montre du recul dans l’analyse, avec une attention intéressante aux nuances. Bon potentiel d’élargissement.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Apporte un regard pertinent sur l’essentiel. Gagne à explorer plus largement les perspectives autour de lui.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Se concentre sur ce qu’il maîtrise. Peut enrichir sa vision en échangeant avec des profils complémentaires.',
+      },
+    ],
+  },
+  {
+    id: 4,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Propose des idées originales et constructives. Apporte des solutions nouvelles sans perdre de vue l’objectif.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Montre une bonne disposition à proposer autrement. À l’aise pour suggérer, surtout dans un climat positif.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Fait preuve d’idées pertinentes dans un cadre connu. Sa créativité s’active mieux avec soutien et encouragement.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Exprime des idées solides quand il se sent en confiance. Gagne à évoluer dans un environnement stimulant.',
+      },
+    ],
+  },
+  {
+    id: 5,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Pose ses limites avec clarté. Sait coopérer sans se suradapter. Bon équilibre dans la relation pro.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Affirme ses positions avec diplomatie. Peut encore progresser en constance selon les interlocuteurs.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'À l’écoute, cherche l’harmonie. Sa posture s’affirme davantage quand le cadre est clair et bienveillant.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Préfère parfois s’ajuster à l’autre. Son autonomie relationnelle se développe dans un climat de confiance.',
+      },
+    ],
+  },
+  {
+    id: 6,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Intègre les critiques avec lucidité, sans se déstabiliser. Fait évoluer ses pratiques avec justesse et discernement.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Accueille les retours avec ouverture. Peut encore consolider son équilibre selon le niveau de pression ou la source du feedback.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Tient compte des retours mais peut douter ou se replier dans certaines situations. Progresse bien avec des feedbacks cadrés.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Sensibilité au regard extérieur. Sa progression est rapide lorsqu’on lui offre un espace d’échange bienveillant et structurant.',
+      },
+    ],
+  },
+  {
+    id: 7,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          "Profil stable qui s'adapte avec réactivité, sans confusion. Garde le cap même en cas d’imprévu. Précieux dans les environnements changeants.",
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Très bonne capacité d’ajustement. Gagne en assurance lorsqu’il peut s’appuyer sur des repères stables.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Peut s’adapter dans un périmètre connu. Sa souplesse augmente avec l’expérience et un cadre rassurant.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Préférence pour les environnements prévisibles. Montre des signes d’adaptabilité quand le changement est anticipé et accompagné.',
+      },
+    ],
+  },
+];
+
+const matriceGlobalSynthese = [
+  {
+    id: 1,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Décide vite et juste. Excellent sens de la tactique en contexte opérationnel mouvant.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Bon pilotage dans l’ensemble. Peut gagner en réactivité ou en structuration selon les cas.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Potentiel stratégique présent mais irrégulier. Un appui en amont l’aide à clarifier et assumer ses décisions.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Besoin d’un cadre de réflexion pour sécuriser ses choix. Le potentiel se révèle dans un environnement cadré.',
+      },
+    ],
+  },
+  {
+    id: 2,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Ressort solide dans l’adversité. Capable de rebondir, s’ajuster et trancher avec calme. Profil fiable en zones de turbulence.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Montre une bonne stabilité émotionnelle et sait ajuster son action. Gagne en impact avec un cadre clair dans les moments-clés.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Résistance correcte, mais encore en développement dans certaines zones d’incertitude. Monte en puissance facilement avec un appui managérial régulier.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'Reste mobilisé s’il se sent soutenu. Sa résilience se renforce dans des contextes bien cadrés et sans surcharge émotionnelle.',
+      },
+    ],
+  },
+  {
+    id: 3,
+    options: [
+      {
+        max: 1,
+        min: 0.75,
+        value:
+          'Possède un regard affuté et fiable sur les profils. Capte vite les forces et les potentiels dans un collectif.',
+      },
+      {
+        max: 0.74,
+        min: 0.6,
+        value:
+          'Bonne lecture des dynamiques humaines. Peut affiner encore son ressenti en l’appuyant sur des échanges réguliers.',
+      },
+      {
+        max: 59,
+        min: 0.4,
+        value:
+          'Montre de la sensibilité aux autres. Gagne à structurer ses observations pour mieux lire les situations.',
+      },
+      {
+        max: 0.39,
+        min: 0,
+        value:
+          'S’appuie sur ses repères personnels pour comprendre les autres. Un cadre collaboratif enrichit sa lecture.',
+      },
+    ],
+  },
+];
+
 export {
   interviewQuestions,
   testQuestions,
   responseEvaluations,
   syntheseEvaluation,
+  initialMatrice,
+  matriceSynthese,
+  matriceGlobalSynthese,
 };

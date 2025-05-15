@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import Button from '../components/Button';
+
 import { useNavigate } from 'react-router-dom';
 import {
   Brain,
@@ -8,43 +10,147 @@ import {
   ArrowRight,
   Download,
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { motion } from 'framer-motion';
-import Button from '../components/Button';
 import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
-import { useUser } from '../providers/User.provider';
-import { testQuestions } from '../lib/constants';
+import { initialMatrice } from '../lib/constants';
+import { MatriceValueInterface } from '../interfaces/client-report/MatriceValue.interface';
+import { TestInterviewInterface } from '../interfaces/TestInterview.interface';
+import {
+  getGlobalValueForScore,
+  getValueForScore,
+  percentage,
+} from '../lib/function';
+import { CvInterface } from '../interfaces/Cv.interface';
 
 const ResultsPage: React.FC = () => {
-  const { tests } = useSelector((state: RootState) => state.user);
   const { email } = useSelector((state: RootState) => state.persistInfos);
-
-  const [globalScore, setGlobalScore] = useState(0);
 
   const navigate = useNavigate();
 
-  const { isLoading } = useUser();
+  const [loadingSendReport, setLoadinSendReport] = React.useState(false);
+  const [cvData, setCvData] = React.useState<CvInterface | null>(null);
+  const [globalScore, setGlobalScore] = React.useState(0);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [tests, setTests] = React.useState<TestInterviewInterface>({
+    answers: [],
+  });
+  const [values, setValues] = React.useState<MatriceValueInterface>({
+    m1: 0,
+    m2: 0,
+    m3: 0,
+    m4: 0,
+    m5: 0,
+    m6: 0,
+    m7: 0,
+  });
 
-  useEffect(() => {
-    if (!isLoading && tests) {
-      if (tests.length < testQuestions.length) {
+  React.useEffect(() => {
+    if (email) {
+      (async () => {
+        const testsDocRef = doc(db, 'tests', email);
+        const testsDocSnap = await getDoc(testsDocRef);
+
+        if (testsDocSnap.exists()) {
+          const data = testsDocSnap.data();
+          setTests(data);
+        }
+
+        const cvDocRef = doc(db, 'cvs', email);
+        const cvDocSnap = await getDoc(cvDocRef);
+
+        if (cvDocSnap.exists()) {
+          const data: CvInterface = cvDocSnap.data();
+          setCvData(data);
+        }
+
+        setIsLoading(false);
+      })();
+    }
+  }, [email]);
+
+  React.useEffect(() => {
+    if (!isLoading && tests.answers) {
+      if (
+        !cvData?.completedSteps ||
+        (cvData?.completedSteps && !cvData.completedSteps.testCompleted)
+      ) {
         navigate('/test');
       } else {
-        const scores = tests.map((item) => item.score);
+        const finalValues = {} as MatriceValueInterface;
 
-        const average =
-          scores.length > 0
-            ? scores.reduce((acc, val) => acc + val, 0) / scores.length
-            : 0;
+        // 1️⃣ On calcule d'abord la moyenne
+        const withMoyennes = initialMatrice.map((item) => {
+          const scores = item.value
+            .map(
+              (qn) =>
+                tests.answers?.find((a) => a.questionNumber === qn)?.score ??
+                null
+            )
+            .filter((s): s is number => s !== null);
 
-        setGlobalScore(average);
+          const moyenne =
+            scores.length > 0
+              ? scores.reduce((a, b) => a + b, 0) / scores.length
+              : 0;
+
+          return {
+            ...item,
+            result: parseFloat(moyenne.toFixed(2)),
+          };
+        });
+
+        // 2️⃣ On applique sur ces moyennes tes règles (opt, bonus/malus, modulo 5)
+        withMoyennes.map((item) => {
+          const optResult =
+            withMoyennes.find((x) => x.id === item.opt)?.result ?? 0;
+          let r = item.result;
+
+          if (optResult > 0.75) r += 0.02;
+          else if (optResult < 0.4) r -= 0.03;
+
+          // modulo 5 aléatoire
+          if (Math.ceil(r * 100) % 5 === 0) {
+            r += Math.random() < 0.5 ? -0.03 : 0.03;
+          }
+
+          r = parseFloat(r.toFixed(2));
+          finalValues[`m${item.id}` as keyof MatriceValueInterface] = r;
+        });
+
+        // 3️⃣ On met tout à jour **une seule fois**
+        setValues(finalValues);
       }
     }
-  }, [isLoading, tests]);
+  }, [isLoading, cvData, tests.answers]);
+
+  React.useEffect(() => {
+    if (values) {
+      const average = parseFloat(
+        (
+          Object.values(values).reduce((sum, val) => sum + val, 0) /
+          Object.values(values).length
+        ).toFixed(2)
+      );
+
+      // Générer un ajustement aléatoire entre +0 et +0.07 ou entre -0 et -0.05
+      const random = Math.random(); // [0, 1)
+      const adjustment =
+        random < 0.5
+          ? parseFloat((random * 0.07).toFixed(2)) // entre 0 et 0.07
+          : -parseFloat((random * 0.05).toFixed(2)); // entre -0 et -0.05
+
+      const adjustedAverage = parseFloat((average + adjustment).toFixed(2));
+      setGlobalScore(adjustedAverage);
+    }
+  }, [values]);
 
   const handleSendReport = () => {
     if (!email) return;
     // Simulate sending email
+    setLoadinSendReport(true);
     setTimeout(() => {
       navigate('/formation');
     }, 1000);
@@ -109,7 +215,7 @@ const ResultsPage: React.FC = () => {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 1, delay: 2.5 }}
                   >
-                    {Math.ceil(globalScore * 100)}%
+                    {percentage(globalScore)}%
                   </motion.span>
                 </div>
               </div>
@@ -180,7 +286,7 @@ const ResultsPage: React.FC = () => {
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="font-medium text-gray-700">
-                    Priorisation rapide
+                    Sens de l'efficacité
                   </span>
                   <motion.span
                     className="font-bold text-gray-900"
@@ -188,14 +294,14 @@ const ResultsPage: React.FC = () => {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5, delay: 1 }}
                   >
-                    85%
+                    {percentage(values.m1)}%
                   </motion.span>
                 </div>
                 <motion.div className="h-2 bg-gray-100 rounded-full">
                   <motion.div
                     className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: '85%' }}
+                    animate={{ width: `${percentage(values.m1)}%` }}
                     transition={{ duration: 1.5, delay: 0.3 }}
                     style={{
                       backgroundSize: '200% 100%',
@@ -206,7 +312,7 @@ const ResultsPage: React.FC = () => {
 
                 <div className="flex justify-between mt-6 mb-2">
                   <span className="font-medium text-gray-700">
-                    Arbitrage humain
+                    Analyse des situations
                   </span>
                   <motion.span
                     className="font-bold text-gray-900"
@@ -214,14 +320,14 @@ const ResultsPage: React.FC = () => {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5, delay: 1.3 }}
                   >
-                    78%
+                    {percentage(values.m2)}%
                   </motion.span>
                 </div>
                 <motion.div className="h-2 bg-gray-100 rounded-full">
                   <motion.div
                     className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: '78%' }}
+                    animate={{ width: `${percentage(values.m2)}%` }}
                     transition={{ duration: 1.5, delay: 0.6 }}
                     style={{
                       backgroundSize: '200% 100%',
@@ -233,11 +339,7 @@ const ResultsPage: React.FC = () => {
 
               <div className="bg-rose-50 rounded-lg p-6">
                 <p className="text-gray-700">
-                  Votre capacité à prioriser rapidement (85%) démontre une
-                  excellente gestion des urgences opérationnelles. L'arbitrage
-                  humain (78%) révèle un bon équilibre entre efficacité et
-                  facteur humain, avec un potentiel d'amélioration dans la
-                  gestion des conflits d'équipe sous pression.
+                  {getGlobalValueForScore(1, (values.m1 + values.m2) / 2)}
                 </p>
               </div>
             </div>
@@ -263,7 +365,7 @@ const ResultsPage: React.FC = () => {
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="font-medium text-gray-700">
-                    Point de non-retour
+                    Remise en question constructive
                   </span>
                   <motion.span
                     className="font-bold text-gray-900"
@@ -271,14 +373,14 @@ const ResultsPage: React.FC = () => {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5, delay: 1.6 }}
                   >
-                    92%
+                    {percentage(values.m6)}%
                   </motion.span>
                 </div>
                 <motion.div className="h-2 bg-gray-100 rounded-full">
                   <motion.div
                     className="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: '92%' }}
+                    animate={{ width: `${percentage(values.m6)}%` }}
                     transition={{ duration: 1.5, delay: 0.9 }}
                     style={{
                       backgroundSize: '200% 100%',
@@ -289,7 +391,7 @@ const ResultsPage: React.FC = () => {
 
                 <div className="flex justify-between mt-6 mb-2">
                   <span className="font-medium text-gray-700">
-                    Flexibilité outil
+                    Agilité à piloter en s'adaptant
                   </span>
                   <motion.span
                     className="font-bold text-gray-900"
@@ -297,14 +399,14 @@ const ResultsPage: React.FC = () => {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5, delay: 1.9 }}
                   >
-                    90%
+                    {percentage(values.m7)}%
                   </motion.span>
                 </div>
                 <motion.div className="h-2 bg-gray-100 rounded-full">
                   <motion.div
                     className="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: '90%' }}
+                    animate={{ width: `${percentage(values.m7)}%` }}
                     transition={{ duration: 1.5, delay: 1.2 }}
                     style={{
                       backgroundSize: '200% 100%',
@@ -316,11 +418,7 @@ const ResultsPage: React.FC = () => {
 
               <div className="bg-purple-50 rounded-lg p-6">
                 <p className="text-gray-700">
-                  Excellence dans l'identification des points de non-retour
-                  (92%), permettant des décisions cruciales au bon moment. La
-                  flexibilité (90%) montre une adaptabilité remarquable aux
-                  changements de contexte. Un léger biais de confirmation peut
-                  parfois ralentir la prise de décision en situation complexe.
+                  {getGlobalValueForScore(2, (values.m6 + values.m7) / 2)}
                 </p>
               </div>
             </div>
@@ -359,16 +457,13 @@ const ResultsPage: React.FC = () => {
                   </div>
                 </div>
                 <h3 className="font-bold text-gray-900 mb-2">
-                  Lecture Adaptative
+                  Vision des problématiques
                 </h3>
-                <p className="text-sm text-gray-600">88%</p>
+                <p className="text-sm text-gray-600">
+                  {percentage(values.m3)}%
+                </p>
                 <p className="text-sm text-gray-700 mt-2">
-                  <strong>Atouts :</strong> Excellente lecture des signaux
-                  non-verbaux et adaptation naturelle au contexte. Facilité à
-                  créer des relations de confiance et à désamorcer les tensions.{' '}
-                  <strong>Axes d'évolution :</strong> Approfondir l'analyse des
-                  dynamiques de groupe complexes et renforcer la transmission de
-                  ces compétences à l'équipe.
+                  {getValueForScore(3, values.m3)}
                 </p>
               </div>
 
@@ -387,17 +482,12 @@ const ResultsPage: React.FC = () => {
                     <Shield className="w-8 h-8 text-cyan-600" />
                   </div>
                 </div>
-                <h3 className="font-bold text-gray-900 mb-2">
-                  Stabilité Sous Pression
-                </h3>
-                <p className="text-sm text-gray-600">76%</p>
+                <h3 className="font-bold text-gray-900 mb-2">Force créative</h3>
+                <p className="text-sm text-gray-600">
+                  {percentage(values.m4)}%
+                </p>
                 <p className="text-sm text-gray-700 mt-2">
-                  <strong>Atouts :</strong> Bonne gestion du stress quotidien et
-                  maintien de la performance sous pression modérée.{' '}
-                  <strong>Axes d'évolution :</strong> Renforcer la stabilité
-                  émotionnelle dans les situations extrêmes et développer des
-                  stratégies de régulation pour éviter les biais décisionnels
-                  sous forte tension.
+                  {getValueForScore(4, values.m4)}
                 </p>
               </div>
 
@@ -417,16 +507,13 @@ const ResultsPage: React.FC = () => {
                   </div>
                 </div>
                 <h3 className="font-bold text-gray-900 mb-2">
-                  Lecture Intuitive
+                  Indépendance relationnelle
                 </h3>
-                <p className="text-sm text-gray-600">67%</p>
+                <p className="text-sm text-gray-600">
+                  {percentage(values.m5)}%
+                </p>
                 <p className="text-sm text-gray-700 mt-2">
-                  <strong>Atouts :</strong> Solide approche analytique dans
-                  l'évaluation des compétences directement observables.{' '}
-                  <strong>Axes d'évolution :</strong> Développer la détection
-                  des talents cachés et affiner la perception des potentiels
-                  inexploités pour enrichir l'identification des opportunités de
-                  développement.
+                  {getValueForScore(5, values.m5)}
                 </p>
               </div>
             </div>
@@ -438,10 +525,34 @@ const ResultsPage: React.FC = () => {
           <Button
             onClick={handleSendReport}
             size="lg"
-            className="bg-[#FF6B00] hover:bg-[#FF8124] text-white font-semibold py-4 px-8 rounded-lg shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+            className={`bg-[#FF6B00] text-white font-semibold py-4 px-8 rounded-lg shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+              loadingSendReport
+                ? 'opacity-80 pointer-events-none'
+                : 'hover:opacity-90 cursor-pointer'
+            }`}
           >
-            <Download className="w-5 h-5" />
-            Recevoir mes résultats par e-mail
+            {loadingSendReport ? (
+              <svg
+                aria-hidden="true"
+                role="status"
+                className="inline w-5 h-5 animate-spin"
+                viewBox="0 0 100 101"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                  fill="#E5E7EB"
+                />
+                <path
+                  d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                  fill="currentColor"
+                />
+              </svg>
+            ) : (
+              <Download className="w-5 h-5" />
+            )}
+            <span>Recevoir mes résultats par e-mail</span>
           </Button>
         </div>
       </div>

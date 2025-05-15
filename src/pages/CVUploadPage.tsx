@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import FileUpload from '../components/FileUpload';
@@ -11,13 +11,13 @@ import { useDispatch } from 'react-redux';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-export default function CVUploadPage() {
+export default function CvUploadPage() {
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState('');
-  const [cv, setCv] = useState<File | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [email, setEmail] = React.useState('');
+  const [cv, setCv] = React.useState<File | null>(null);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const navigate = useNavigate();
 

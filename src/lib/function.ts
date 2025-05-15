@@ -4,6 +4,11 @@ import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 
 import workerSrc from 'pdfjs-dist/build/pdf.worker?url';
 import JSON5 from 'json5';
+import {
+  matriceGlobalSynthese,
+  matriceSynthese,
+  syntheseEvaluation,
+} from './constants';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -89,4 +94,60 @@ const extractJson = (value?: string | null): any | null => {
   }
 };
 
-export { extractTextFromPDF, extractTextFromDocx, extractJson };
+const percentage = (value: number): number => {
+  return Math.round(value * 100);
+};
+
+const getSyntheseValue = (average: number): string | undefined => {
+  const entry = syntheseEvaluation.find(
+    (item) => average >= item.min && average <= item.max
+  );
+
+  if (!entry) return undefined;
+
+  if (typeof entry.value === 'string') {
+    return entry.value;
+  }
+
+  if (Array.isArray(entry.value)) {
+    const randomIndex = Math.floor(Math.random() * entry.value.length);
+    return entry.value[randomIndex];
+  }
+};
+
+const getValueForScore = (id: number, score: number): string | undefined => {
+  // 1) On cherche l’évaluation correspondant à l’ID
+  const evaluation = matriceSynthese.find((item) => item.id === id);
+  if (!evaluation) return undefined;
+
+  // 2) On cherche l’option dont le score est dans [min, max]
+  const opt = evaluation.options.find(
+    (item) => score >= item.min && score <= item.max
+  );
+  return opt?.value;
+};
+
+const getGlobalValueForScore = (
+  id: number,
+  score: number
+): string | undefined => {
+  // 1) On cherche l’évaluation correspondant à l’ID
+  const evaluation = matriceGlobalSynthese.find((item) => item.id === id);
+  if (!evaluation) return undefined;
+
+  // 2) On cherche l’option dont le score est dans [min, max]
+  const opt = evaluation.options.find(
+    (item) => score >= item.min && score <= item.max
+  );
+  return opt?.value;
+};
+
+export {
+  extractTextFromPDF,
+  extractTextFromDocx,
+  extractJson,
+  percentage,
+  getSyntheseValue,
+  getValueForScore,
+  getGlobalValueForScore,
+};

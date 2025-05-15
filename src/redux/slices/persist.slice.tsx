@@ -24,7 +24,7 @@ const persistSlice = createSlice({
       if (typeof timer === 'number') {
         state.timer = timer;
       }
-      if (currentQuestion) {
+      if (typeof currentQuestion === 'number') {
         state.currentQuestion = currentQuestion;
       }
     },

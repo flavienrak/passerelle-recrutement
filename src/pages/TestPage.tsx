@@ -1,57 +1,90 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import React from 'react';
 import Layout from '../components/Layout';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
-import { useUser } from '../providers/User.provider';
+
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { updatePersistReducer } from '../redux/slices/persist.slice';
-import { doc, setDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, setDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { interviewQuestions, testQuestions } from '../lib/constants';
+import { testQuestions } from '../lib/constants';
+import { TestInterviewInterface } from '../interfaces/TestInterview.interface';
+import { updateUserReducer } from '../redux/slices/user.slice';
+import { CvInterface } from '../interfaces/Cv.interface';
 
 export default function TestPage() {
   const duration = 30;
-  const { interviews, tests } = useSelector((state: RootState) => state.user);
   const { email, timer, currentQuestion } = useSelector(
     (state: RootState) => state.persistInfos
   );
   const dispatch = useDispatch();
 
-  const [currentAnswer, setCurrentAnswer] = useState<{
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [cvData, setCvData] = React.useState<CvInterface | null>(null);
+  const [tests, setTests] = React.useState<TestInterviewInterface>({
+    answers: [],
+  });
+  const [currentAnswer, setCurrentAnswer] = React.useState<{
     value: string;
     score: number;
     index: number;
   } | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(timer);
-  const [timerExpired, setTimerExpired] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
-  const [testStarted, setTestStarted] = useState(false);
+
+  const [timeLeft, setTimeLeft] = React.useState<number>(timer);
+  const [timerExpired, setTimerExpired] = React.useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = React.useState(true);
+  const [testStarted, setTestStarted] = React.useState(false);
 
   const navigate = useNavigate();
-  const { isLoading } = useUser();
 
-  useEffect(() => {
+  React.useEffect(() => {
+    if (!email) {
+      navigate('/');
+    } else {
+      (async () => {
+        setIsLoading(true);
+
+        const testsDocRef = doc(db, 'tests', email);
+        const testsDocSnap = await getDoc(testsDocRef);
+
+        if (testsDocSnap.exists()) {
+          const data = testsDocSnap.data();
+          dispatch(updateUserReducer({ tests: data }));
+          setTests(data);
+        }
+
+        const cvDocRef = doc(db, 'cvs', email);
+        const cvDocSnap = await getDoc(cvDocRef);
+
+        if (cvDocSnap.exists()) {
+          const data: CvInterface = cvDocSnap.data();
+          setCvData(data);
+        }
+
+        setIsLoading(false);
+      })();
+    }
+  }, [email]);
+
+  React.useEffect(() => {
     if (!isLoading) {
-      if (!email || !interviews) {
-        navigate('/');
-      } else if (interviews.length < interviewQuestions.length) {
-        navigate('/interview');
+      if (cvData?.completedSteps && cvData.completedSteps.testCompleted) {
+        navigate('/results');
+      } else {
+        dispatch(
+          updatePersistReducer({
+            currentQuestion: tests.answers ? tests.answers.length : 0,
+          })
+        );
       }
     }
-  }, [isLoading, email, interviews]);
+  }, [isLoading, cvData, tests.answers]);
 
-  useEffect(() => {
-    if (tests.length === testQuestions.length) {
-      navigate('/results');
-    }
-    dispatch(updatePersistReducer({ currentQuestion: tests.length }));
-  }, [tests]);
-
-  useEffect(() => {
-    if (testStarted && currentQuestion < testQuestions.length - 1) {
+  React.useEffect(() => {
+    if (testStarted) {
       // Reset timer for current question
       setTimeLeft(timer);
 
@@ -67,9 +100,9 @@ export default function TestPage() {
         setTimerExpired(true);
       }
     }
-  }, [currentQuestion, testStarted, timer]);
+  }, [testStarted, timer]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (currentAnswer) {
       (async () => {
         const interviewsDocRef = doc(db, 'tests', email);

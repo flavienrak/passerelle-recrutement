@@ -1,15 +1,16 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
-import CVUploadPage from './pages/CVUploadPage';
+import CvUploadPage from './pages/CvUploadPage';
 import InterviewQuestionsPage from './pages/InterviewQuestionsPage';
-import LandingPage from './pages/LandingPage';
+import TestLanding from './pages/TestLanding';
 import TestPage from './pages/TestPage';
 import ResultsPage from './pages/ResultsPage';
 import MicroFormationPage from './pages/MicroFormationPage';
 import ReportingPage from './pages/ReportingPage';
-import { UserProvider } from './providers/User.provider';
 import ReduxProvider from './providers/Redux.provider';
+import UserProvider from './providers/User.provider';
+
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 function App() {
   return (
@@ -18,9 +19,9 @@ function App() {
         <UserProvider>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/cv-upload" element={<CVUploadPage />} />
+            <Route path="/cv-upload" element={<CvUploadPage />} />
             <Route path="/interview" element={<InterviewQuestionsPage />} />
-            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/test-landing" element={<TestLanding />} />
             <Route path="/test" element={<TestPage />} />
             <Route path="/results" element={<ResultsPage />} />
             <Route path="/formation" element={<MicroFormationPage />} />

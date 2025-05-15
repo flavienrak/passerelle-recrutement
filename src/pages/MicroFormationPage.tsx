@@ -1,4 +1,8 @@
 import React from 'react';
+import Layout from '../components/Layout';
+import Card from '../components/Card';
+import Button from '../components/Button';
+
 import { useNavigate } from 'react-router-dom';
 import {
   BrainCircuit,
@@ -8,9 +12,6 @@ import {
   Presentation as PresentationChart,
   Zap,
 } from 'lucide-react';
-import Layout from '../components/Layout';
-import Card from '../components/Card';
-import Button from '../components/Button';
 
 const MicroFormationPage: React.FC = () => {
   const navigate = useNavigate();

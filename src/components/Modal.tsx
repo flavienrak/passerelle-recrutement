@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import React from 'react';
 import Button from './Button';
+
+import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -19,9 +20,9 @@ const Modal: React.FC<ModalProps> = ({
   footer,
   className = '',
 }) => {
-  const modalRef = useRef<HTMLDivElement>(null);
+  const modalRef = React.useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -57,21 +58,25 @@ const Modal: React.FC<ModalProps> = ({
         className={`bg-[#1A1E2E] border border-gray-700/50 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {title && <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            className="p-1 h-8 w-8 rounded-full"
-            onClick={onClose}
-          >
-            <X size={16} />
-          </Button>
-        </div>}
-        
-        <div className={title ? "p-4" : ""}>{children}</div>
-        
-        {footer && <div className="p-4 border-t border-gray-700/50">{footer}</div>}
+        {title && (
+          <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
+            <h2 className="text-xl font-semibold text-white">{title}</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              className="p-1 h-8 w-8 rounded-full"
+              onClick={onClose}
+            >
+              <X size={16} />
+            </Button>
+          </div>
+        )}
+
+        <div className={title ? 'p-4' : ''}>{children}</div>
+
+        {footer && (
+          <div className="p-4 border-t border-gray-700/50">{footer}</div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
-import { Upload, File, X } from 'lucide-react';
+import React from 'react';
 import Button from './Button';
+
+import { Upload, File, X } from 'lucide-react';
 
 interface FileUploadProps {
   onFileSelected: (file: File) => void;
@@ -15,31 +16,32 @@ const FileUpload: React.FC<FileUploadProps> = ({
   maxSize = 5, // 5MB default
   label = 'Déposer votre fichier ici ou cliquer pour parcourir',
 }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [dragActive, setDragActive] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleFile = (file: File) => {
     setError(null);
-    
+
     // Check file type
     const fileType = file.name.split('.').pop()?.toLowerCase();
-    const acceptedTypes = accept.split(',').map(type => 
-      type.trim().replace('.', '').toLowerCase()
-    );
-    
+    const acceptedTypes = accept
+      .split(',')
+      .map((type) => type.trim().replace('.', '').toLowerCase());
+
     if (!acceptedTypes.includes(fileType || '')) {
       setError(`Format de fichier non accepté. Veuillez utiliser: ${accept}`);
       return;
     }
-    
+
     // Check file size
     if (file.size > maxSize * 1024 * 1024) {
       setError(`Fichier trop volumineux. Maximum: ${maxSize}MB`);
       return;
     }
-    
+
     setSelectedFile(file);
     onFileSelected(file);
   };
@@ -65,7 +67,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
@@ -126,7 +128,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           </Button>
         </div>
       )}
-      
+
       <input
         ref={inputRef}
         type="file"
@@ -134,10 +136,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
         accept={accept}
         onChange={handleChange}
       />
-      
-      {error && (
-        <p className="mt-2 text-red-500 text-sm">{error}</p>
-      )}
+
+      {error && <p className="mt-2 text-red-500 text-sm">{error}</p>}
     </div>
   );
 };

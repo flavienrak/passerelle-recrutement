@@ -1,21 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { Bar } from 'react-chartjs-2';
 
 import {
   ArcElement,
   BarElement,
   CategoryScale,
+  ChartData,
   Chart as ChartJS,
+  ChartOptions,
   Filler,
   Legend,
   LinearScale,
   LineElement,
   PointElement,
   RadialLinearScale,
+  ScriptableContext,
   Tooltip,
 } from 'chart.js';
 import { TestResponseInterface } from '../../interfaces/TestResponse.interface';
-import { responseEvaluations, syntheseEvaluation } from '../../lib/constants';
+import { getSyntheseValue, getValueForScore } from '../../lib/function';
 
 ChartJS.register(
   RadialLinearScale,
@@ -30,7 +33,7 @@ ChartJS.register(
   BarElement
 );
 
-const barOptions = {
+const barOptions: ChartOptions<'bar'> = {
   responsive: true,
   plugins: {
     legend: {
@@ -66,65 +69,87 @@ const barOptions = {
   },
 };
 
+// Couleurs de base pour chaque barre
+const baseColors = [
+  {
+    from: 'rgba(59, 130, 246, 0.2)',
+    to: 'rgba(59, 130, 246, 0.8)',
+    border: 'rgba(59, 130, 246, 1)',
+  }, // Bleu
+  {
+    from: 'rgba(79, 70, 229, 0.2)',
+    to: 'rgba(79, 70, 229, 0.8)',
+    border: 'rgba(79, 70, 229, 1)',
+  }, // Indigo
+  {
+    from: 'rgba(16, 185, 129, 0.2)',
+    to: 'rgba(16, 185, 129, 0.8)',
+    border: 'rgba(16, 185, 129, 1)',
+  }, // Vert
+];
+
 export default function EmotionalLevel({
   tests,
 }: {
   tests: TestResponseInterface[];
 }) {
-  const barChartRef = useRef<ChartJS | null>(null);
-  const [average, setAverage] = useState<number | null>(null);
+  const chartRef = React.useRef<ChartJS<'bar'>>(null);
 
-  const emotionalData = {
+  const [chartData, setChartData] = React.useState<ChartData<'bar'>>({
     labels: ['Risque terrain', 'Implication émotionnelle', 'Force de décision'],
     datasets: [
       {
         data: [0, 0, 0],
-        backgroundColor: (context) => {
+        // on met une fonction scriptable qui retourne UN CanvasGradient à la fois
+        backgroundColor: (context: ScriptableContext<'bar'>) => {
           const chart = context.chart;
           const { ctx, chartArea } = chart;
-          if (!chartArea) return;
-
-          const gradients = [
-            ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top),
-            ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top),
-            ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top),
-          ];
-
-          gradients[0].addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-          gradients[0].addColorStop(1, 'rgba(59, 130, 246, 0.8)');
-
-          gradients[1].addColorStop(0, 'rgba(79, 70, 229, 0.2)');
-          gradients[1].addColorStop(1, 'rgba(79, 70, 229, 0.8)');
-
-          gradients[2].addColorStop(0, 'rgba(16, 185, 129, 0.2)');
-          gradients[2].addColorStop(1, 'rgba(16, 185, 129, 0.8)');
-
-          return gradients;
+          // si le chart n'est pas encore prêt, on retourne une couleur de secours
+          if (!chartArea) {
+            return baseColors[context.dataIndex ?? 0].from;
+          }
+          const idx = context.dataIndex as number;
+          const { from, to } = baseColors[idx];
+          const gradient = ctx.createLinearGradient(
+            0,
+            chartArea.bottom,
+            0,
+            chartArea.top
+          );
+          gradient.addColorStop(0, from);
+          gradient.addColorStop(1, to);
+          return gradient;
         },
-        borderColor: [
-          'rgba(59, 130, 246, 1)',
-          'rgba(79, 70, 229, 1)',
-          'rgba(16, 185, 129, 1)',
-        ],
+        borderColor: baseColors.map((c) => c.border),
         borderWidth: 2,
-        shadowColor: 'rgba(0, 0, 0, 0.3)',
-        shadowBlur: 10,
       },
     ],
-  };
+  });
+  const [average, setAverage] = React.useState<number | null>(null);
 
-  useEffect(() => {
-    const scores = tests.map((item) => item.score);
-    setAverage(
-      scores.length > 0
-        ? scores.reduce((acc, val) => acc + val, 0) / scores.length
-        : 0
-    );
+  // on génère explicitement les gradients une fois le chart monté
+  React.useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const { chartArea } = chart;
+    if (!chartArea) return;
+    chart.update();
+  }, [chartRef.current]);
+
+  React.useEffect(() => {
+    if (tests) {
+      const scores = tests.map((item) => item.score);
+      setAverage(
+        scores.length > 0
+          ? scores.reduce((acc, val) => acc + val, 0) / scores.length
+          : 0
+      );
+    }
   }, [tests]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (typeof average === 'number') {
-      const chart = barChartRef.current;
+      const chart = chartRef.current;
       if (!chart) return;
 
       let newAverage = Math.ceil(average * 100);
@@ -141,83 +166,61 @@ export default function EmotionalLevel({
         return newAverage + delta;
       });
 
-      chart.data.datasets[0].data = data;
-      chart.update();
+      setChartData((prev) => ({
+        ...prev,
+        datasets: [
+          {
+            ...prev.datasets[0],
+            data,
+          },
+        ],
+      }));
     }
   }, [average]);
 
-  const getValueForScore = (id: number): string | undefined => {
-    if (average) {
-      // 1) On cherche l’évaluation correspondant à l’ID
-      const evaluation = responseEvaluations.find((item) => item.id === id);
-      if (!evaluation) return undefined;
-
-      // 2) On cherche l’option dont le score est dans [min, max]
-      const opt = evaluation.options.find(
-        (item) => average >= item.min && average <= item.max
-      );
-      return opt?.value;
-    }
-    return undefined;
-  };
-
-  const getSyntheseValue = (): string | undefined => {
-    if (average) {
-      const entry = syntheseEvaluation.find(
-        (item) => average >= item.min && average <= item.max
-      );
-
-      if (!entry) return undefined;
-
-      if (typeof entry.value === 'string') {
-        return entry.value;
-      }
-
-      if (Array.isArray(entry.value)) {
-        const randomIndex = Math.floor(Math.random() * entry.value.length);
-        return entry.value[randomIndex];
-      }
-    }
-
-    return undefined;
-  };
-
-  return (
-    <div className="bg-[#1A1E2E]/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 mb-8">
-      <h2 className="text-2xl font-bold mb-6">
-        Niveau d'imprégnation émotivo-professionnelle
-      </h2>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="h-[300px]">
-          <Bar ref={barChartRef} data={emotionalData} options={barOptions} />
-        </div>
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 text-[#FF6B00]">
-                Risque terrain
-              </h3>
-              <p className="text-sm text-gray-300">{getValueForScore(1)}</p>
-            </div>
-            <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 text-[#FF6B00]">
-                Implication émotionnelle
-              </h3>
-              <p className="text-sm text-gray-300">{getValueForScore(2)}</p>
-            </div>
-            <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 text-[#FF6B00]">
-                Force de décision
-              </h3>
-              <p className="text-sm text-gray-300">{getValueForScore(3)}</p>
-            </div>
+  if (typeof average === 'number')
+    return (
+      <div className="bg-[#1A1E2E]/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 mb-8">
+        <h2 className="text-2xl font-bold mb-6">
+          Niveau d'imprégnation émotivo-professionnelle
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="h-[300px]">
+            <Bar ref={chartRef} data={chartData} options={barOptions} />
           </div>
-          <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-            <h3 className="font-semibold mb-2 text-[#FF6B00]">Synthèse</h3>
-            <p className="text-gray-300">{getSyntheseValue()}</p>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#0A0E17]/50 rounded-lg p-4">
+                <h3 className="font-semibold mb-2 text-[#FF6B00]">
+                  Risque terrain
+                </h3>
+                <p className="text-sm text-gray-300">
+                  {getValueForScore(1, average)}
+                </p>
+              </div>
+              <div className="bg-[#0A0E17]/50 rounded-lg p-4">
+                <h3 className="font-semibold mb-2 text-[#FF6B00]">
+                  Implication émotionnelle
+                </h3>
+                <p className="text-sm text-gray-300">
+                  {getValueForScore(2, average)}
+                </p>
+              </div>
+              <div className="bg-[#0A0E17]/50 rounded-lg p-4">
+                <h3 className="font-semibold mb-2 text-[#FF6B00]">
+                  Force de décision
+                </h3>
+                <p className="text-sm text-gray-300">
+                  {getValueForScore(3, average)}
+                </p>
+              </div>
+            </div>
+            <div className="bg-[#0A0E17]/50 rounded-lg p-4">
+              <h3 className="font-semibold mb-2 text-[#FF6B00]">Synthèse</h3>
+              <p className="text-gray-300">{getSyntheseValue(average)}</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 }

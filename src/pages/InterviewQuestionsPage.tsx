@@ -1,13 +1,13 @@
+import React from 'react';
 import classNames from 'classnames';
-import { doc, setDoc, arrayUnion } from 'firebase/firestore';
-import { Mic, StopCircle } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Layout from '../components/Layout';
-import { useUser } from '../providers/User.provider';
-import { db } from '../lib/firebase';
 import axios from 'axios';
+
+import { doc, getDoc, setDoc, arrayUnion } from 'firebase/firestore';
+import { Mic, StopCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { db } from '../lib/firebase';
 import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { extractJson } from '../lib/function';
@@ -21,189 +21,242 @@ import {
   responseAnonym,
 } from '../lib/prompts';
 import { interviewQuestions } from '../lib/constants';
+import { InterviewInterface } from '../interfaces/Interview.interface';
+import { CvInterface } from '../interfaces/Cv.interface';
 
-const InterviewQuestionsPage: React.FC = () => {
-  const { interviews, cv } = useSelector((state: RootState) => state.user);
+function sanitizeOrder<T extends { content: string; order: any }[]>(
+  array: T
+): T {
+  return array.map((item) => ({
+    ...item,
+    order: Number(item.order),
+  })) as T;
+}
+
+export default function InterviewQuestionsPage() {
   const { email } = useSelector((state: RootState) => state.persistInfos);
 
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answer, setAnswer] = useState('');
-  const [loadingTranslation, setLoadingTranslation] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
-    null
-  );
-  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
-
   const navigate = useNavigate();
-  const { isLoading } = useUser();
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (!email || !cv) {
-        navigate('/');
-      } else {
-        (async () => {
-          if (interviews.length === interviewQuestions.length) {
-            navigate('/test');
-          } else {
-            setCurrentQuestion(interviews.length);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [interviews, setInterviews] = React.useState<InterviewInterface[]>([]);
+  const [cvData, setCvData] = React.useState<CvInterface | null>(null);
+  const [currentQuestion, setCurrentQuestion] = React.useState(0);
+  const [answer, setAnswer] = React.useState('');
+  const [loadingTranslation, setLoadingTranslation] = React.useState(false);
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [mediaRecorder, setMediaRecorder] =
+    React.useState<MediaRecorder | null>(null);
+  const [isLoadingResponse, setIsLoadingResponse] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!email) {
+      navigate('/');
+    } else {
+      (async () => {
+        setIsLoading(true);
+        const interviewsDocRef = doc(db, 'interviews', email);
+        const interviewsDocSnap = await getDoc(interviewsDocRef);
+
+        if (interviewsDocSnap.exists()) {
+          const data: { answers: InterviewInterface[] } =
+            interviewsDocSnap.data();
+
+          if (Array.isArray(data.answers)) {
+            setInterviews(data.answers);
           }
+        }
 
-          if (
-            cv.completedSteps.cvUploaded &&
-            !cv.completedSteps.anonymisation
-          ) {
-            (async () => {
+        const cvDocRef = doc(db, 'cvs', email);
+        const cvDocSnap = await getDoc(cvDocRef);
+
+        if (cvDocSnap.exists()) {
+          const data: CvInterface = cvDocSnap.data();
+          setCvData(data);
+        }
+
+        setIsLoading(false);
+      })();
+    }
+  }, [email]);
+
+  React.useEffect(() => {
+    if (!isLoading) {
+      if (!cvData) {
+        navigate('/cv-upload');
+      } else if (cvData) {
+        if (
+          !cvData.completedSteps ||
+          (cvData.completedSteps && cvData.completedSteps.interviewCompleted)
+        ) {
+          navigate('/test-landing');
+        } else {
+          setCurrentQuestion(interviews.length);
+        }
+
+        if (
+          cvData.completedSteps &&
+          cvData.completedSteps.cvUploaded &&
+          !cvData.completedSteps.anonymisation
+        ) {
+          (async () => {
+            // CV PROCESSING
+            const openaiResponse = await chat([
+              { role: 'system', content: cvProcessing.trim() },
+              {
+                role: 'user',
+                content: `Contenu du CV : ${cvData.cvContent}`.trim(),
+              },
+            ]);
+
+            if (openaiResponse.content) {
+              const itemData: {
+                presentation: { content: string; order: number }[];
+                diplomes: { content: string; order: number }[];
+                formations: { content: string; order: number }[];
+                competences: { content: string; order: number }[];
+                experiences: { content: string; order: number }[];
+              } = extractJson(openaiResponse.content);
+
+              itemData.presentation = sanitizeOrder(itemData.presentation);
+              itemData.diplomes = sanitizeOrder(itemData.diplomes);
+              itemData.formations = sanitizeOrder(itemData.formations);
+              itemData.competences = sanitizeOrder(itemData.competences);
+              itemData.experiences = sanitizeOrder(itemData.experiences);
+
+              await setDoc(
+                doc(db, 'cvs', email),
+                {
+                  email,
+                  presentation: itemData.presentation[0].content,
+                  diplomes: itemData.diplomes,
+                  formations: itemData.formations,
+                  competences: itemData.competences,
+                  experiences: itemData.experiences,
+                },
+                { merge: true }
+              );
+
               let messageContent = 'Contenu du CV :\n';
 
-              if (cv.diplomes && cv.diplomes.length > 0) {
-                messageContent += `\nDiplômes :\n${cv.diplomes
+              if (itemData.diplomes && itemData.diplomes.length > 0) {
+                messageContent += `\nDiplômes :\n${itemData.diplomes
                   .map((c) => c.content)
                   .join('\n')}`;
               }
 
-              if (cv.formations && cv.formations.length > 0) {
-                messageContent += `\nFormations :\n${cv.formations
+              if (itemData.formations && itemData.formations.length > 0) {
+                messageContent += `\nFormations :\n${itemData.formations
                   .map((c) => c.content)
                   .join('\n')}`;
               }
 
-              if (cv.competences && cv.competences.length > 0) {
-                messageContent += `\nCompétences :\n${cv.competences
+              if (itemData.competences && itemData.competences.length > 0) {
+                messageContent += `\nCompétences :\n${itemData.competences
                   .map((c) => c.content)
                   .join('\n')}`;
               }
 
-              if (cv.experiences && cv.experiences.length > 0) {
-                messageContent += `\nExpériences :\n${cv.experiences
+              if (itemData.experiences && itemData.experiences.length > 0) {
+                messageContent += `\nExpériences :\n${itemData.experiences
                   .map((c) => c.content)
                   .join('\n')}`;
               }
 
-              // CV PROCESSING
-              const openaiResponse = await chat([
-                { role: 'system', content: cvProcessing.trim() },
-                { role: 'user', content: messageContent.trim() },
-              ]);
+              // DIPLOMES ANONYME
+              if (itemData.diplomes.length > 0) {
+                const openaiItemResponse = await chat([
+                  { role: 'system', content: diplomeAnonym.trim() },
+                  { role: 'user', content: messageContent.trim() },
+                ]);
 
-              if (openaiResponse.content) {
-                const itemData: {
-                  presentation: string;
-                  diplomes: string[];
-                  formations: string[];
-                  competences: string[];
-                  experiences: string[];
-                } = extractJson(openaiResponse.content);
+                if (openaiItemResponse.content) {
+                  const itemData: string[] = extractJson(
+                    openaiItemResponse.content
+                  );
 
-                await setDoc(
-                  doc(db, 'cvs', email),
-                  {
-                    email,
-                    presentation: itemData.presentation,
-                    diplomes: itemData.diplomes,
-                    formations: itemData.formations,
-                    competences: itemData.competences,
-                    experiences: itemData.experiences,
-                  },
-                  { merge: true }
-                );
-
-                // DIPLOMES ANONYME
-                if (itemData.diplomes.length > 0) {
-                  const openaiItemResponse = await chat([
-                    { role: 'system', content: diplomeAnonym.trim() },
-                    { role: 'user', content: messageContent.trim() },
-                  ]);
-
-                  if (openaiItemResponse.content) {
-                    const itemData: string[] = extractJson(
-                      openaiItemResponse.content
-                    );
-
-                    await setDoc(
-                      doc(db, 'cvs', email),
-                      { email, diplomes_anonym: itemData },
-                      { merge: true }
-                    );
-                  }
+                  await setDoc(
+                    doc(db, 'cvs', email),
+                    { email, diplomes_anonym: itemData },
+                    { merge: true }
+                  );
                 }
-
-                // FORMATION ANONYME
-                if (itemData.formations.length > 0) {
-                  const openaiItemResponse = await chat([
-                    { role: 'system', content: formationAnonym.trim() },
-                    { role: 'user', content: messageContent.trim() },
-                  ]);
-
-                  if (openaiItemResponse.content) {
-                    const itemData: { content: string } = extractJson(
-                      openaiItemResponse.content
-                    );
-
-                    await setDoc(
-                      doc(db, 'cvs', email),
-                      { email, formation_anonym: itemData.content },
-                      { merge: true }
-                    );
-                  }
-                }
-
-                // COMPETENCES ANONYME
-                if (itemData.competences.length > 0) {
-                  const openaiItemResponse = await chat([
-                    { role: 'system', content: competenceAnonym.trim() },
-                    { role: 'user', content: messageContent.trim() },
-                  ]);
-
-                  if (openaiItemResponse.content) {
-                    const itemData: { content: string } = extractJson(
-                      openaiItemResponse.content
-                    );
-
-                    await setDoc(
-                      doc(db, 'cvs', email),
-                      { email, competence_anonym: itemData.content },
-                      { merge: true }
-                    );
-                  }
-                }
-
-                // EXPERIENCES ANONYME
-                if (itemData.experiences.length > 0) {
-                  const openaiExperienceResponse = await chat([
-                    { role: 'system', content: experienceAnonym.trim() },
-                    { role: 'user', content: messageContent.trim() },
-                  ]);
-
-                  if (openaiExperienceResponse.content) {
-                    const itemData: {
-                      title: string;
-                      date: string;
-                      company: string;
-                      description: string;
-                    }[] = extractJson(openaiExperienceResponse.content);
-
-                    await setDoc(
-                      doc(db, 'cvs', email),
-                      { email, experiences_anonym: itemData },
-                      { merge: true }
-                    );
-                  }
-                }
-
-                await setDoc(
-                  doc(db, 'cvs', email),
-                  { email, completedSteps: { anonymisation: true } },
-                  { merge: true }
-                );
               }
-            })();
-          }
-        })();
+
+              // FORMATION ANONYME
+              if (itemData.formations.length > 0) {
+                const openaiItemResponse = await chat([
+                  { role: 'system', content: formationAnonym.trim() },
+                  { role: 'user', content: messageContent.trim() },
+                ]);
+
+                if (openaiItemResponse.content) {
+                  const itemData: { content: string } = extractJson(
+                    openaiItemResponse.content
+                  );
+
+                  await setDoc(
+                    doc(db, 'cvs', email),
+                    { email, formation_anonym: itemData.content },
+                    { merge: true }
+                  );
+                }
+              }
+
+              // COMPETENCES ANONYME
+              if (itemData.competences.length > 0) {
+                const openaiItemResponse = await chat([
+                  { role: 'system', content: competenceAnonym.trim() },
+                  { role: 'user', content: messageContent.trim() },
+                ]);
+
+                if (openaiItemResponse.content) {
+                  const itemData: { content: string } = extractJson(
+                    openaiItemResponse.content
+                  );
+
+                  await setDoc(
+                    doc(db, 'cvs', email),
+                    { email, competence_anonym: itemData.content },
+                    { merge: true }
+                  );
+                }
+              }
+
+              // EXPERIENCES ANONYME
+              if (itemData.experiences.length > 0) {
+                const openaiExperienceResponse = await chat([
+                  { role: 'system', content: experienceAnonym.trim() },
+                  { role: 'user', content: messageContent.trim() },
+                ]);
+
+                if (openaiExperienceResponse.content) {
+                  const itemData: {
+                    title: string;
+                    date: string;
+                    company: string;
+                    description: string;
+                  }[] = extractJson(openaiExperienceResponse.content);
+
+                  await setDoc(
+                    doc(db, 'cvs', email),
+                    { email, experiences_anonym: itemData },
+                    { merge: true }
+                  );
+                }
+              }
+
+              await setDoc(
+                doc(db, 'cvs', email),
+                { email, completedSteps: { anonymisation: true } },
+                { merge: true }
+              );
+            }
+          })();
+        }
       }
     }
-  }, [isLoading, email, interviews, cv]);
+  }, [isLoading, cvData, interviews]);
 
   const startRecording = async () => {
     try {
@@ -254,7 +307,6 @@ const InterviewQuestionsPage: React.FC = () => {
             }
           );
 
-          setLoadingTranslation(false);
           handleSubmit({ audioAnswer: response.data.text });
         } catch (error) {
           console.error('Erreur transcription OpenAI:', error);
@@ -278,7 +330,9 @@ const InterviewQuestionsPage: React.FC = () => {
       answer.trim().length > 0 ||
       (audioAnswer && audioAnswer.trim().length > 0)
     ) {
-      setIsLoadingResponse(true);
+      if (answer.trim().length > 0) {
+        setIsLoadingResponse(true);
+      }
 
       const interviewsDocRef = doc(db, 'interviews', email);
       const openaiResponse = await chat([
@@ -322,10 +376,11 @@ const InterviewQuestionsPage: React.FC = () => {
           { merge: true }
         );
 
-        navigate('/test');
+        navigate('/test-landing');
       }
 
       setIsLoadingResponse(false);
+      setLoadingTranslation(false);
     }
   };
 
@@ -393,7 +448,7 @@ const InterviewQuestionsPage: React.FC = () => {
                       className={`w-full rounded-lg flex items-center justify-center gap-2 py-3 text-lg font-medium bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/20 transition-all duration-300 ${
                         isRecording &&
                         'animate-[pulse_2s_ease-in-out_infinite] bg-[length:200%_200%] bg-[0%_0%]'
-                      }`}
+                      } ${isLoadingResponse ? 'pointer-events-none' : ''}`}
                     >
                       {isRecording ? (
                         <>
@@ -467,6 +522,4 @@ const InterviewQuestionsPage: React.FC = () => {
       </div>
     </Layout>
   );
-};
-
-export default InterviewQuestionsPage;
+}

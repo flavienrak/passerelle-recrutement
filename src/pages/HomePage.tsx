@@ -1,3 +1,7 @@
+import React from 'react';
+import Button from '../components/Button';
+import Card from '../components/Card';
+
 import {
   collection,
   deleteDoc,
@@ -15,10 +19,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from '../components/Button';
-import Card from '../components/Card';
 import { db } from '../lib/firebase';
 
 const ITEMS_PER_PAGE = 50;
@@ -85,20 +86,24 @@ const reports: Report[] = [
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
   const [activeSection, setActiveSection] = React.useState<
     'home' | 'candidates' | 'clients' | 'about'
   >('home');
+
   const [editingCell, setEditingCell] = React.useState<{
     row: number;
     field: keyof Report | keyof Candidate;
   } | null>(null);
+
   const [tableData, setTableData] = React.useState<Report[]>(reports);
   const [candidateData, setCandidateData] = React.useState<Candidate[]>([]);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const inputRef = React.useRef<HTMLInputElement>(null);
   const [filters, setFilters] = React.useState<Record<string, string>>({});
 
-  const activeData = useMemo(
+  const activeData = React.useMemo(
     () =>
       activeSection === 'candidates'
         ? candidateData.filter((row) => row.email !== 'unknown')

@@ -1,25 +1,31 @@
 const interviewQuestions = [
   {
+    id: 1,
     text: 'Quel est ton dernier (ou actuel) poste, que fais/faisais-tu au quotidien dans cette expérience ?',
     helper: 'Décrire les missions concrètes, tâches principales.',
   },
   {
+    id: 2,
     text: 'Quelles principales priorités ou urgences devais-tu gérer ?',
     helper: 'Mettre en lumière ce qui est important',
   },
   {
+    id: 3,
     text: 'Peux-tu citer une action précise que tu as menée et dont tu es fier(e) ?',
     helper: 'Faire ressortir un résultat concret, même petit.',
   },
   {
+    id: 4,
     text: 'Avec qui travaillais-tu principalement ? (clients, équipe, manager…)',
     helper: 'Clients, équipe, manager..➔ contexte relationnel réel',
   },
   {
+    id: 5,
     text: "Qu'as-tu appris de pratique ou de nouveau pendant cette expérience ?",
     helper: 'Des compétences que tu as développer ou consolider',
   },
   {
+    id: 6,
     text: 'As-tu un autre point important que tu aimerais partager au recruteur ?',
     helper:
       'Tu peux raconter ton expérience précédente ou tout autre élément pertinent',

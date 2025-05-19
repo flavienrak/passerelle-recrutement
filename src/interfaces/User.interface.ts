@@ -1,5 +1,6 @@
 export interface UserInterface {
   email: string;
+  acceptConditions: boolean;
   name?: string;
   cvContent?: string;
   sector?: string;
@@ -11,7 +12,7 @@ export interface UserInterface {
   competences?: { content: string; order: number }[];
   experiences?: { content: string; order: number }[];
   diplomes_anonym?: string[];
-  formation_anonym?: string;
+  formations_anonym?: string[];
   competence_anonym?: string;
   experiences_anonym?: {
     title: string;

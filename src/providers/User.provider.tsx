@@ -57,7 +57,7 @@ export default function UserProvider({
     React.useState<UserInterface>(initialUserData);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const notProtectedPaths = ['/cv-upload'];
+  const notProtectedPaths = ['/cv-upload', '/conditions'];
 
   React.useEffect(() => {
     if (!email && !notProtectedPaths.includes(location.pathname)) {

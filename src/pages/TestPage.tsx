@@ -107,12 +107,17 @@ export default function TestPage() {
       (async () => {
         const interviewsDocRef = doc(db, 'tests', email);
 
+        const modifiedScore =
+          currentAnswer.score <= 0.25
+            ? currentAnswer.score + 0.01 * timer
+            : currentAnswer.score;
+
         await setDoc(
           interviewsDocRef,
           {
             answers: arrayUnion({
               answer: currentAnswer.value,
-              score: currentAnswer.score,
+              score: modifiedScore,
               answerIndex: currentAnswer.index,
               timeLeft: timer,
               timeExpired: timerExpired,

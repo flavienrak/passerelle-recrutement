@@ -16,6 +16,7 @@ import {
   RadialLinearScale,
   ScriptableContext,
   Tooltip,
+  Plugin,
 } from 'chart.js';
 import { MatriceValueInterface } from '../../interfaces/client-report/MatriceValue.interface';
 import { extractJson, percentage } from '../../lib/function';
@@ -41,8 +42,53 @@ ChartJS.register(
   BarElement
 );
 
+const labelColors = [
+  '#EC4899',
+  '#EC4899',
+  '#3B82F6',
+  '#3B82F6',
+  '#3B82F6',
+  '#10B981',
+  '#10B981',
+];
+
+const coloredLabelsPlugin: Plugin<'radar'> = {
+  id: 'coloredLabelsPlugin',
+  afterDraw(chart: ChartJS<'radar'>) {
+    const scale = chart.scales.r as RadialLinearScale;
+
+    const ctx = chart.ctx;
+    const labels = chart.data.labels as (string | string[])[];
+
+    const radius = scale.getDistanceFromCenterForValue(scale.max ?? 100) + 60;
+    const centerX = scale.xCenter;
+    const centerY = scale.yCenter;
+
+    labels.forEach((label, i) => {
+      const angle = scale.getIndexAngle(i) - Math.PI / 2;
+      const x = centerX + Math.cos(angle) * radius;
+      const y = centerY + Math.sin(angle) * radius;
+
+      ctx.save();
+      ctx.fillStyle = labelColors[i % labelColors.length]; // 🎯 couleur selon index
+      ctx.font = '600 14px Arial'; // 👈 poids 600 pour "gras"
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const lines = Array.isArray(label) ? label : [label];
+      lines.forEach((line, j) => {
+        ctx.fillText(line, x, y + j * 16); // 👈 16 pour plus d’espace
+      });
+
+      ctx.restore();
+    });
+  },
+};
 const spiderOptions: ChartOptions<'radar'> = {
   responsive: true,
+  layout: {
+    padding: 100, // 👈 Ajoute de l'espace autour du canvas
+  },
   scales: {
     r: {
       min: 0,
@@ -62,12 +108,7 @@ const spiderOptions: ChartOptions<'radar'> = {
         circular: true,
       },
       pointLabels: {
-        color: 'rgba(255, 255, 255, 0.6)',
-        font: {
-          size: 14,
-          weight: '500',
-        },
-        padding: 20,
+        display: false,
       },
     },
   },
@@ -104,13 +145,13 @@ export default function SyntheseGlobale({
 
   const [chartData, setChartData] = React.useState<ChartData<'radar'>>({
     labels: [
-      "Sens de l'efficacité",
-      'Analyse des situations',
-      'Remise en question constructive',
-      "Agilité à piloter en s'adaptant",
-      'Vision des problématiques',
-      'Force créative',
-      'Indépendance relationnelle',
+      ['Sens de', "l'efficacité"],
+      ['Analyse', 'des situations'],
+      ['Remise en', 'question', 'constructive'],
+      ['Agilité à piloter', "en s'adaptant"],
+      ['Vision', 'des', 'problématiques'],
+      ['Force', 'créative'],
+      ['Indépendance ', 'relationnelle'],
     ],
     datasets: [
       {
@@ -252,10 +293,15 @@ export default function SyntheseGlobale({
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA1Ii8+PC9zdmc+')] opacity-20" />
       <h2 className="text-2xl font-bold mb-6">Synthèse Globale</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="relative w-full group" style={{ height: '400px' }}>
+        <div className="relative w-full group" style={{ height: '500px' }}>
           <div className="absolute inset-0 bg-gradient-radial from-[#FF6B00]/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
           <div className="absolute inset-[-1px] rounded-xl border border-[#FF6B00]/10 shadow-[0_0_30px_rgba(255,107,0,0.1)] animate-pulse opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <Radar ref={chartRef} data={chartData} options={spiderOptions} />
+          <Radar
+            ref={chartRef}
+            data={chartData}
+            options={spiderOptions}
+            plugins={[coloredLabelsPlugin]}
+          />
         </div>
         <div className="space-y-6">
           <div className="bg-[#0A0E17]/50 rounded-lg p-6">

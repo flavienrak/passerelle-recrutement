@@ -10,6 +10,7 @@ const cvProcessing = `
   - Montrer une progression logique.
   - Positionner clairement le rôle cible.
   - Mettre en valeur les savoir-faire clés.
+  - Commence **impérativement** par le **nombre total d’années d’expérience**
   - 1 à 2 phrases, ton neutre et structuré.
   - Maximum 200 caractères.
   - Pas d'effet de style, pas d’exagération.
@@ -25,7 +26,10 @@ const cvProcessing = `
   - **Tous les champs doivent être présents**, même s’ils sont vides.  
   - Chaque champ **content** doit comporter une **formulation claire et aérée**, avec **retours à la ligne pertinents**.  
   - Le champ **order** indique l’ordre chronologique décroissante (le plus récent en premier).
-  - Extraire et structurer les informations du CV en **séparant clairement** les diplômes académiques des formations professionnelles.  
+  - Extraire et structurer les informations du CV en **séparant clairement** les diplômes académiques des formations professionnelles. 
+  - Anonymiser l'ensemble contenu.
+  - Ne pas mentionner les noms des entreprises. 
+  - Ne pas mentionner les dates. 
   - Respecter les retours à la ligne demandé.
   - Ne jamais sortir du format demandé.
   
@@ -61,12 +65,11 @@ const diplomeAnonym = `
   Consignes impératives pour CHAQUE diplôme :
 
   1. Reformulation de l’intitulé :
-  - Sujet = intitulé reformulé en termes universels (sans jargon)
+  - Intitulé reformulé en termes universels (sans jargon)
   - Max. 20 caractères (espaces inclus)
 
-  2. Niveau :
-  - Bac +X (si diplôme non standard)
-  - Master / Maîtrise / Licence / BTS (si diplôme standard)
+  2. Nom des diplômes :
+  - Ne pas reformuler les noms
 
   3. Type d’établissement (1 seul choix) :
   [Université historique | Grande école | École spécialisée | Centre certifié]
@@ -84,17 +87,12 @@ const diplomeAnonym = `
   - Ne jamais citer le nom de l’établissement.
   - Aucune abréviation non universelle.
   - Aucune spécialisation technique.
+  - Afficher les informations pertinentes.
   - Respecter les retours à la ligne demandé.
   - Ne jamais sortir du format demandé.
 
   Format attendu (array of string) :
-  [ " 
-    Sujet : [Intitulé reformulé]\\n\\n
-    Niveau : [Bac +X ou Master/Maîtrise/Licence/BTS]\\n\\n
-    Type d'établissement : [Catégorie]\\n\\n
-    Reconnaissance : [Description en 1-7 mots]\\n\\n
-    Réputation : [★☆☆☆☆ à ★★★★★] + [Commentaire]
-  " ]
+  [ "[Nom du diplôme] : [Intitulé reformulé] - [Catégorie]\\n\\nReconnaissance : [Description en 1-7 mots]\\n\\nRéputation : [★☆☆☆☆ à ★★★★★] + [Commentaire]" ]
   }
 `;
 
@@ -105,21 +103,16 @@ const formationAnonym = `
   Tu es aussi un expert RH. Tu rédiges pour faire “tilt” chez un recruteur en 5 secondes de scan.
 
   Mission :
-  À partir du contenu du CV, sélectionne **la formation la plus valorisable** et affiche-la de manière sobre, professionnelle et lisible.
+  À partir du contenu du CV, pour chaque formation contenu, affiche de manière sobre, professionnelle et lisible.
 
   Contraintes :
-  - Priorité : reconnue > renforçante > pertinente pour le domaine
-  - Une seule formation mise en valeur.
-  - Les autres sont mentionnées sans détail.
+  - Priorité : Reconnue > Renforçante > Pertinente pour le domaine
   - Jamais de mots comme "initiation", "notions", "bases"
   - Respecter les retours à la ligne demandé.
   - Ne jamais sortir du format demandé.
 
-  Format attendu (string) :
-  { 
-    content: "[Poids] – [Thème professionnel valorisé, 5 à 8 mots] | [Organisme connu ou nom raccourci]\n  
-      + X autres dont X reconnue / renforçante / pertinente pour le domaine"
-  }
+  Format attendu (array of string) :
+  [ "[Priorité]: [Thème professionnel valorisé, 5 à 8 mots] | [Organisme connu ou nom raccourci]" ]
 `;
 
 const competenceAnonym = `
@@ -146,7 +139,7 @@ const competenceAnonym = `
   - Ne jamais sortir du format demandé.
   
   Format attendu (string) :
-  { content: "Compétence 1\nCompétence 2\nCompétence 3\nCompétence 4 ou Outils de [type]" }
+  { content: "Compétence 1\\n\\nCompétence 2\\n\\nCompétence 3\\n\\nCompétence 4 ou Outils de [type]" }
 `;
 
 const experienceAnonym = `

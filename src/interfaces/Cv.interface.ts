@@ -6,7 +6,7 @@ export interface CvInterface {
   competences: { content: string; order: number }[];
   experiences: { content: string; order: number }[];
   diplomes_anonym?: string[];
-  formation_anonym?: string | null;
+  formations_anonym?: string[];
   competence_anonym?: string | null;
   experiences_anonym?: {
     title: string;

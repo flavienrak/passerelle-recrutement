@@ -25,7 +25,7 @@ import {
 } from '../lib/function';
 import { CvInterface } from '../interfaces/Cv.interface';
 
-const ResultsPage: React.FC = () => {
+export default function ResultsPage() {
   const { email } = useSelector((state: RootState) => state.persistInfos);
 
   const navigate = useNavigate();
@@ -564,6 +564,4 @@ const ResultsPage: React.FC = () => {
       `}</style>
     </div>
   );
-};
-
-export default ResultsPage;
+}

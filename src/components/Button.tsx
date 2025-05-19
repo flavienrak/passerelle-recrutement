@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { cn } from '../lib/utils';
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
@@ -40,8 +42,15 @@ export default function Button({
 
   return (
     <button
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${widthClass} ${disabledClass} ${className}`}
       {...props}
+      className={cn(
+        baseClasses,
+        variantClasses[variant],
+        sizeClasses[size],
+        widthClass,
+        disabledClass,
+        className
+      )}
     >
       {loading ? (
         <svg

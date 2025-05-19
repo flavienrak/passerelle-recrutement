@@ -191,13 +191,13 @@ export default function InterviewQuestionsPage() {
                 ]);
 
                 if (openaiItemResponse.content) {
-                  const itemData: { content: string } = extractJson(
+                  const itemData: { content: string }[] = extractJson(
                     openaiItemResponse.content
                   );
 
                   await setDoc(
                     doc(db, 'cvs', email),
-                    { email, formation_anonym: itemData.content },
+                    { email, formations_anonym: itemData },
                     { merge: true }
                   );
                 }

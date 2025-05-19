@@ -22,7 +22,7 @@ export default function ResultatCognitif({
   setSelectedFamily: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
   return (
-    <div className="bg-[#1A1E2E]/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 mb-8">
+    <section className="bg-[#1A1E2E]/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 mb-8">
       <h2 className="text-2xl font-bold mb-6">
         Automatismes d'action en situation terrain
       </h2>
@@ -609,6 +609,6 @@ export default function ResultatCognitif({
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

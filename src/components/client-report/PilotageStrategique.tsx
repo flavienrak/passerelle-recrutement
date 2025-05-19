@@ -13,7 +13,7 @@ export default function PilotageStrategique({
   return (
     <div
       onClick={onClick}
-      className="w-full flex flex-col justify-center bg-gradient-to-br from-[#1A1E2E] to-[#2A1E12] rounded-lg p-6 hover:bg-gradient-to-br hover:from-[#1F2437] hover:to-[#2F2315] transition-all duration-300 hover:scale-[1.02] relative group h-[420px] cursor-pointer"
+      className="w-full h-full flex flex-col justify-center bg-gradient-to-br from-[#1A1E2E] to-[#2A1E12] rounded-lg p-6 hover:bg-gradient-to-br hover:from-[#1F2437] hover:to-[#2F2315] transition-all duration-300 hover:scale-[1.02] relative group cursor-pointer"
     >
       <div className="absolute inset-0 bg-gradient-radial from-[#FF6B00]/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       <div className="flex items-center justify-center gap-3 mb-4 relative">

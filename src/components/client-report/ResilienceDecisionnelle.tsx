@@ -14,7 +14,7 @@ export default function ResilienceDecisionnelle({
   return (
     <div
       onClick={onClick}
-      className="w-full bg-gradient-to-br from-[#1A1E2E] to-[#1E122A] rounded-lg p-6 hover:bg-gradient-to-br hover:from-[#1F2437] hover:to-[#231531] transition-all duration-300 hover:scale-[1.02] relative group overflow-hidden h-[420px] flex flex-col"
+      className="w-full h-full flex flex-col bg-gradient-to-br from-[#1A1E2E] to-[#1E122A] rounded-lg p-6 hover:bg-gradient-to-br hover:from-[#1F2437] hover:to-[#231531] transition-all duration-300 hover:scale-[1.02] relative group overflow-hidden"
     >
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA1Ii8+PC9zdmc+')] opacity-50" />
       <div className="w-48 h-48 mx-auto relative mb-4">

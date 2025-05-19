@@ -13,7 +13,7 @@ export default function PotentielHumain({
   return (
     <div
       onClick={onClick}
-      className="w-full bg-gradient-to-br from-[#1A1E2E] to-[#122A1E] rounded-lg p-6 hover:bg-gradient-to-br hover:from-[#1F2437] hover:to-[#153123] transition-all duration-300 hover:scale-[1.02] relative group h-[420px] flex flex-col"
+      className="w-full h-full bg-gradient-to-br from-[#1A1E2E] to-[#122A1E] rounded-lg p-6 hover:bg-gradient-to-br hover:from-[#1F2437] hover:to-[#153123] transition-all duration-300 hover:scale-[1.02] relative group flex flex-col"
     >
       <div className="absolute inset-0 bg-gradient-radial from-[#FF6B00]/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       <div className="w-48 h-48 mx-auto relative mb-4">

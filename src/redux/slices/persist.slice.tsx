@@ -1,11 +1,16 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-const initialState: { email: string; timer: number; currentQuestion: number } =
-  {
-    email: '',
-    timer: 30,
-    currentQuestion: 0,
-  };
+const initialState: {
+  email: string;
+  timer: number;
+  currentQuestion: number;
+  acceptConditions: boolean;
+} = {
+  email: '',
+  timer: 30,
+  currentQuestion: 0,
+  acceptConditions: false,
+};
 
 const persistSlice = createSlice({
   name: 'persistInfos',
@@ -16,8 +21,13 @@ const persistSlice = createSlice({
         email,
         timer,
         currentQuestion,
-      }: { email?: string; timer?: number; currentQuestion?: number } =
-        action.payload;
+        acceptConditions,
+      }: {
+        email?: string;
+        timer?: number;
+        currentQuestion?: number;
+        acceptConditions?: boolean;
+      } = action.payload;
       if (email) {
         state.email = email;
       }
@@ -26,6 +36,9 @@ const persistSlice = createSlice({
       }
       if (typeof currentQuestion === 'number') {
         state.currentQuestion = currentQuestion;
+      }
+      if (typeof acceptConditions === 'boolean') {
+        state.acceptConditions = acceptConditions;
       }
     },
   },

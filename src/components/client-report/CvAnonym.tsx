@@ -42,24 +42,28 @@ export default function CvAnonym({ user }: { user: UserInterface }) {
 
       <Section
         icon={<GraduationCap className="w-6 h-6 text-blue-400" />}
-        title="Diplômes et Formation"
+        title="Diplômes"
       >
-        <div className="space-y-4">
-          {user.formation_anonym && (
-            <p className="font-medium text-white mb-2">
-              {user?.formation_anonym}
-            </p>
-          )}
-        </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-8">
           {user.diplomes_anonym?.map((item, index) => (
             <p
               key={`diplome-${item}-index-${index}`}
-              className="font-medium text-white"
+              className="font-medium text-white leading-4 border-l-2 border-blue-500/30 pl-4 whitespace-pre-line"
             >
               {item}
             </p>
           ))}
+          <div className="flex flex-col gap-6">
+            <h2 className="text-xl font-semibold text-white">Formations</h2>
+            {user.formations_anonym?.map((item, index) => (
+              <p
+                key={`diplome-${item}-index-${index}`}
+                className="font-medium text-white leading-4 whitespace-pre-line"
+              >
+                {item}
+              </p>
+            ))}
+          </div>
         </div>
       </Section>
 

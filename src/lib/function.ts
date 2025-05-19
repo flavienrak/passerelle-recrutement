@@ -95,7 +95,7 @@ const extractJson = (value?: string | null): any | null => {
 };
 
 const percentage = (value: number): number => {
-  return Math.round(value * 100);
+  return Math.min(100, Math.round(value * 100));
 };
 
 const getSyntheseValue = (average: number): string | undefined => {

@@ -7,11 +7,17 @@ import Layout from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import { extractTextFromDocx, extractTextFromPDF } from '../lib/function';
 import { updatePersistReducer } from '../redux/slices/persist.slice';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { RootState } from '../redux/store';
+import Conditions from '../components/cv-upload/Conditions';
 
 export default function CvUploadPage() {
+  const { acceptConditions } = useSelector(
+    (state: RootState) => state.persistInfos
+  );
+
   const dispatch = useDispatch();
 
   const [email, setEmail] = React.useState('');
@@ -62,6 +68,7 @@ export default function CvUploadPage() {
         {
           email,
           cvContent: cvContent.trim(),
+          acceptConditions: true,
           completedSteps: {
             cvUploaded: true,
             anonymisation: false,
@@ -131,6 +138,8 @@ export default function CvUploadPage() {
             </form>
           </Card>
         </div>
+
+        {!acceptConditions && <Conditions />}
       </div>
     </Layout>
   );

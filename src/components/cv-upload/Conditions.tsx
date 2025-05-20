@@ -3,13 +3,13 @@ import StepItem from './StepItem';
 import Button from '../Button';
 
 import { Mail, MessageCircle, Brain, GraduationCap } from 'lucide-react';
-import { useDispatch } from 'react-redux';
-import { updatePersistReducer } from '../../redux/slices/persist.slice';
 import { Link } from 'react-router-dom';
 
-export default function Conditions() {
-  const dispatch = useDispatch();
-
+export default function Conditions({
+  onAccept,
+}: {
+  onAccept: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const [termsAccepted, setTermsAccepted] = React.useState(false);
 
   const steps = [
@@ -30,10 +30,6 @@ export default function Conditions() {
       text: 'Découvre ton profil cognitif + obtiens une formation offerte pour améliorer ta préparation aux entretiens',
     },
   ];
-
-  const handleAccept = () => {
-    dispatch(updatePersistReducer({ acceptConditions: true }));
-  };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
@@ -107,7 +103,7 @@ export default function Conditions() {
 
             <Button
               disabled={!termsAccepted}
-              onClick={handleAccept}
+              onClick={() => onAccept(true)}
               className="w-full"
             >
               Je démarre

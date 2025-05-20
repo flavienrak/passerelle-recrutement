@@ -1,4 +1,6 @@
 import React from 'react';
+import Button from '../Button';
+import SkillsLegend from './SkillsLegend';
 
 import { Radar } from 'react-chartjs-2';
 import {
@@ -20,13 +22,13 @@ import {
 } from 'chart.js';
 import { MatriceValueInterface } from '../../interfaces/client-report/MatriceValue.interface';
 import { extractJson, percentage } from '../../lib/function';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import { useParams } from 'react-router-dom';
 import { RootState } from '../../redux/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { chat } from '../../lib/openai';
 import { syntheseGlobal } from '../../lib/prompts';
+import { db } from '../../lib/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { updateUserReducer } from '../../redux/slices/user.slice';
 
 ChartJS.register(
@@ -133,16 +135,22 @@ const spiderOptions: ChartOptions<'radar'> = {
 };
 
 export default function SyntheseGlobale({
+  average,
+  result,
   values,
 }: {
+  average: number;
+  result: number[];
   values: MatriceValueInterface;
 }) {
   const { tests } = useSelector((state: RootState) => state.user);
-  const { candidateEmail } = useParams();
+  const { userId } = useParams();
 
   const dispatch = useDispatch();
+
   const chartRef = React.useRef<ChartJS<'radar'>>(null);
 
+  const [showModal, setShowModal] = React.useState(false);
   const [chartData, setChartData] = React.useState<ChartData<'radar'>>({
     labels: [
       ['Sens de', "l'efficacité"],
@@ -203,7 +211,7 @@ export default function SyntheseGlobale({
     ],
   });
 
-  const average = parseFloat(
+  const globalAverage = parseFloat(
     (
       Object.values(values).reduce((sum, val) => sum + val, 0) /
       Object.values(values).length
@@ -217,7 +225,7 @@ export default function SyntheseGlobale({
       ? parseFloat((random * 0.07).toFixed(2)) // entre 0 et 0.07
       : -parseFloat((random * 0.05).toFixed(2)); // entre -0 et -0.05
 
-  const adjustedAverage = parseFloat((average + adjustment).toFixed(2));
+  const adjustedAverage = parseFloat((globalAverage + adjustment).toFixed(2));
 
   const messageContent = `
     Sens de l'efficacité : ${percentage(values.m1)}%\n
@@ -230,38 +238,36 @@ export default function SyntheseGlobale({
   `;
 
   React.useEffect(() => {
-    if (candidateEmail) {
+    if (userId) {
       (async () => {
-        const openaiResponse = await chat([
-          { role: 'system', content: syntheseGlobal.trim() },
-          { role: 'user', content: messageContent.trim() },
-        ]);
+        if (!tests.synthese) {
+          const openaiResponse = await chat([
+            { role: 'system', content: syntheseGlobal.trim() },
+            { role: 'user', content: messageContent.trim() },
+          ]);
 
-        if (openaiResponse.content) {
-          const jsonData: { content: string } = extractJson(
-            openaiResponse.content
-          );
+          if (openaiResponse.content) {
+            const jsonData: { content: string } = extractJson(
+              openaiResponse.content
+            );
 
-          await setDoc(
-            doc(db, 'tests', candidateEmail),
-            {
-              email: candidateEmail,
-              synthese: jsonData.content,
-            },
-            { merge: true }
-          );
+            await setDoc(
+              doc(db, 'tests', userId),
+              { synthese: jsonData.content },
+              { merge: true }
+            );
 
-          const testsDocRef = doc(db, 'tests', candidateEmail);
-          const testsDocSnap = await getDoc(testsDocRef);
+            const testsDocSnap = await getDoc(doc(db, 'tests', userId));
 
-          if (testsDocSnap.exists()) {
-            const data = testsDocSnap.data();
-            dispatch(updateUserReducer({ tests: data }));
+            if (testsDocSnap.exists()) {
+              const data = testsDocSnap.data();
+              dispatch(updateUserReducer({ tests: data }));
+            }
           }
         }
       })();
     }
-  }, [candidateEmail]);
+  }, [userId, tests]);
 
   React.useEffect(() => {
     if (values) {
@@ -290,7 +296,6 @@ export default function SyntheseGlobale({
 
   return (
     <div className="bg-gradient-to-br from-[#1A1E2E]/90 via-[#1F2437]/80 to-[#141824]/90 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA1Ii8+PC9zdmc+')] opacity-20" />
       <h2 className="text-2xl font-bold mb-6">Synthèse Globale</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="relative w-full group" style={{ height: '500px' }}>
@@ -322,8 +327,24 @@ export default function SyntheseGlobale({
             <h3 className="font-semibold mb-3 text-[#FF6B00]">Synthèse</h3>
             <p className="text-gray-300">{tests.synthese}</p>
           </div>
+          <Button
+            onClick={() => setShowModal(true)}
+            className="hover:opacity-90 cursor-pointer"
+          >
+            En savoir plus sur le test
+          </Button>
         </div>
       </div>
+      {showModal && (
+        <div className="fixed top-0 left-0 h-full w-full flex justify-center items-center p-4 bg-black/70 backdrop-blur-sm">
+          <SkillsLegend
+            values={values}
+            average={average}
+            result={result}
+            onClose={setShowModal}
+          />
+        </div>
+      )}
     </div>
   );
 }

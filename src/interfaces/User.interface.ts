@@ -1,6 +1,6 @@
 export interface UserInterface {
+  id: string;
   email: string;
-  acceptConditions: boolean;
   name?: string;
   cvContent?: string;
   sector?: string;

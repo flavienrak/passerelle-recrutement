@@ -5,21 +5,19 @@ import ProgressIndicator from './ProgressIndicator';
 import { useLocation } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 
-interface LayoutProps {
-  children: React.ReactNode;
-  showBackButton?: boolean;
-  onBack?: () => void;
-  currentStep?: number;
-}
-
-const Layout: React.FC<LayoutProps> = ({
+export default function Layout({
   children,
   showBackButton = false,
   onBack,
   currentStep = 0,
-}) => {
+}: {
+  children: React.ReactNode;
+  showBackButton?: boolean;
+  onBack?: () => void;
+  currentStep?: number;
+}) {
   const location = useLocation();
-  const isTestPage = location.pathname === '/test';
+  const isTestPage = location.pathname.endsWith('/test');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0A0E17] to-[#1A1E2E] text-white flex flex-col">
@@ -53,6 +51,4 @@ const Layout: React.FC<LayoutProps> = ({
       </footer>
     </div>
   );
-};
-
-export default Layout;
+}

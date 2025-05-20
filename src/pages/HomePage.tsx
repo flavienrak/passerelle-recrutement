@@ -2,13 +2,7 @@ import React from 'react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 
-import {
-  collection,
-  deleteDoc,
-  getDocs,
-  query,
-  where,
-} from 'firebase/firestore';
+import { collection, deleteDoc, getDocs, doc } from 'firebase/firestore';
 import {
   Building2,
   ChevronLeft,
@@ -25,6 +19,7 @@ import { db } from '../lib/firebase';
 const ITEMS_PER_PAGE = 50;
 
 interface Candidate {
+  userId: string;
   topicOwner: string;
   candidateName: string;
   email: string;
@@ -84,7 +79,7 @@ const reports: Report[] = [
   },
 ];
 
-const HomePage: React.FC = () => {
+export default function HomePage() {
   const navigate = useNavigate();
 
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -98,6 +93,7 @@ const HomePage: React.FC = () => {
     field: keyof Report | keyof Candidate;
   } | null>(null);
 
+  const [deleteLoading, setDeleteLoading] = React.useState('');
   const [tableData, setTableData] = React.useState<Report[]>(reports);
   const [candidateData, setCandidateData] = React.useState<Candidate[]>([]);
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -106,7 +102,7 @@ const HomePage: React.FC = () => {
   const activeData = React.useMemo(
     () =>
       activeSection === 'candidates'
-        ? candidateData.filter((row) => row.email !== 'unknown')
+        ? candidateData.filter((row) => row.email)
         : tableData,
     [activeSection, candidateData, tableData]
   );
@@ -119,6 +115,7 @@ const HomePage: React.FC = () => {
   const handleAddRow = () => {
     if (activeSection === 'candidates') {
       const newCandidate: Candidate = {
+        userId: '',
         topicOwner: '',
         candidateName: '',
         email: '',
@@ -147,30 +144,14 @@ const HomePage: React.FC = () => {
     setCurrentPage(Math.ceil((activeData.length + 1) / ITEMS_PER_PAGE));
   };
 
-  const handleDeleteRow = async (index: number, candidate?: Candidate) => {
-    if (activeSection === 'candidates') {
-      const newData = [...candidateData];
-      newData.splice(startIndex + index, 1);
-      setCandidateData(newData);
+  const handleDeleteRow = async (userId: string) => {
+    if (userId) {
+      setDeleteLoading(userId);
+      await deleteDoc(doc(db, 'cvs', userId));
+      await deleteDoc(doc(db, 'interviews', userId));
+      await deleteDoc(doc(db, 'tests', userId));
 
-      const q = query(
-        collection(db, 'cvs'),
-        where('email', '==', candidate!.email)
-      );
-      const querySnapshot = await getDocs(q);
-
-      for (const doc of querySnapshot.docs) {
-        await deleteDoc(doc.ref);
-      }
-    } else {
-      const newData = [...tableData];
-      newData.splice(startIndex + index, 1);
-      setTableData(newData);
-    }
-
-    const newTotalPages = Math.ceil((activeData.length - 1) / ITEMS_PER_PAGE);
-    if (currentPage > newTotalPages) {
-      setCurrentPage(newTotalPages || 1);
+      setCandidateData((prev) => prev.filter((item) => item.userId !== userId));
     }
   };
 
@@ -344,8 +325,9 @@ const HomePage: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        if (candidate.email !== 'unknown')
-                          navigate(`/client-report/${candidate.email}`);
+                        if (candidate.userId) {
+                          navigate(`/${candidate.userId}/reporting`);
+                        }
                       }}
                       className="bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 border-[#FF6B00]/30 text-[#FF6B00] w-8 h-8 flex items-center justify-center"
                     >
@@ -410,10 +392,38 @@ const HomePage: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDeleteRow(index, candidate)}
-                      className="bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 border-[#FF6B00]/30 text-[#FF6B00]"
+                      disabled={deleteLoading === candidate.userId}
+                      onClick={() => handleDeleteRow(candidate.userId)}
+                      className={`bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 border-[#FF6B00]/30 text-[#FF6B00] ${
+                        deleteLoading === candidate.userId
+                          ? 'pointer-events-none'
+                          : ''
+                      }`}
                     >
-                      <X className="w-4 h-4" />
+                      {deleteLoading === candidate.userId ? (
+                        <svg
+                          className="animate-spin h-4 w-4"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
                     </Button>
                   </td>
                 </tr>
@@ -464,7 +474,9 @@ const HomePage: React.FC = () => {
     const querySnapshot = await getDocs(collection(db, 'cvs'));
     const fetchedCandidates = querySnapshot.docs.map((doc) => {
       const data = doc.data();
+
       return {
+        userId: data.id || '',
         topicOwner: '',
         candidateName: data.fileName || '',
         email: data.email || '',
@@ -558,10 +570,7 @@ const HomePage: React.FC = () => {
                   <Plus className="w-5 h-5" />
                   Ajouter une ligne
                 </Button>
-                <Button
-                  onClick={() => navigate('/reporting')}
-                  className="flex items-center gap-2"
-                >
+                <Button onClick={() => {}} className="flex items-center gap-2">
                   <FileText className="w-5 h-5" />
                   Voir modèle reporting
                 </Button>
@@ -737,7 +746,7 @@ const HomePage: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => navigate('/client-report')}
+                            onClick={() => {}}
                             className="bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 border-[#FF6B00]/30 text-[#FF6B00] w-8 h-8 flex items-center justify-center"
                           >
                             T
@@ -747,11 +756,7 @@ const HomePage: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                              navigate(
-                                `/client-report/${report.candidatEnvoye}`
-                              )
-                            }
+                            onClick={() => {}}
                             className="bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 border-[#FF6B00]/30 text-[#FF6B00] w-8 h-8 flex items-center justify-center"
                           >
                             R
@@ -759,7 +764,7 @@ const HomePage: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDeleteRow(index)}
+                            onClick={() => {}}
                             className="bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 border-[#FF6B00]/30 text-[#FF6B00]"
                           >
                             <X className="w-4 h-4" />
@@ -823,7 +828,7 @@ const HomePage: React.FC = () => {
 
               <Button
                 size="lg"
-                onClick={() => navigate('/cv-upload')}
+                onClick={() => navigate(`/cv-upload`)}
                 className="bg-gradient-to-r from-[#FF6B00] to-[#FF8124] hover:from-[#FF8124] hover:to-[#FF9346] transition-all duration-300"
               >
                 Espace Candidat
@@ -862,6 +867,4 @@ const HomePage: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default HomePage;
+}

@@ -4,11 +4,11 @@ import Card from '../components/Card';
 import Layout from '../components/Layout';
 import axios from 'axios';
 
-import { doc, getDoc, setDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { Mic, StopCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { extractJson } from '../lib/function';
 import { chat } from '../lib/openai';
@@ -21,8 +21,8 @@ import {
   responseAnonym,
 } from '../lib/prompts';
 import { interviewQuestions } from '../lib/constants';
-import { InterviewInterface } from '../interfaces/Interview.interface';
 import { CvInterface } from '../interfaces/Cv.interface';
+import { updateUserReducer } from '../redux/slices/user.slice';
 
 function sanitizeOrder<T extends { content: string; order: any }[]>(
   array: T
@@ -34,13 +34,12 @@ function sanitizeOrder<T extends { content: string; order: any }[]>(
 }
 
 export default function InterviewQuestionsPage() {
-  const { email } = useSelector((state: RootState) => state.persistInfos);
+  const { cv, interviews } = useSelector((state: RootState) => state.user);
+  const { userId } = useParams();
 
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [interviews, setInterviews] = React.useState<InterviewInterface[]>([]);
-  const [cvData, setCvData] = React.useState<CvInterface | null>(null);
   const [currentQuestion, setCurrentQuestion] = React.useState(0);
   const [answer, setAnswer] = React.useState('');
   const [loadingTranslation, setLoadingTranslation] = React.useState(false);
@@ -50,213 +49,183 @@ export default function InterviewQuestionsPage() {
   const [isLoadingResponse, setIsLoadingResponse] = React.useState(false);
 
   React.useEffect(() => {
-    if (!email) {
-      navigate('/');
+    if (!cv) {
+      navigate('/cv-upload');
     } else {
-      (async () => {
-        setIsLoading(true);
-        const interviewsDocRef = doc(db, 'interviews', email);
-        const interviewsDocSnap = await getDoc(interviewsDocRef);
+      if (
+        !cv.completedSteps ||
+        (cv.completedSteps && cv.completedSteps.interviewCompleted)
+      ) {
+        navigate(`/${userId}/test-landing`);
+      } else {
+        setCurrentQuestion(
+          interviews.length <= interviewQuestions.length
+            ? interviews.length
+            : interviewQuestions.length
+        );
+      }
 
-        if (interviewsDocSnap.exists()) {
-          const data: { answers: InterviewInterface[] } =
-            interviewsDocSnap.data();
+      if (
+        cv.completedSteps &&
+        cv.completedSteps.cvUploaded &&
+        !cv.completedSteps.anonymisation
+      ) {
+        (async () => {
+          // CV PROCESSING
+          const openaiResponse = await chat([
+            { role: 'system', content: cvProcessing.trim() },
+            {
+              role: 'user',
+              content: `Contenu du CV : ${cv.cvContent}`.trim(),
+            },
+          ]);
 
-          if (Array.isArray(data.answers)) {
-            setInterviews(data.answers);
-          }
-        }
+          if (openaiResponse.content) {
+            const itemData: {
+              presentation: { content: string; order: number }[];
+              diplomes: { content: string; order: number }[];
+              formations: { content: string; order: number }[];
+              competences: { content: string; order: number }[];
+              experiences: { content: string; order: number }[];
+            } = extractJson(openaiResponse.content);
 
-        const cvDocRef = doc(db, 'cvs', email);
-        const cvDocSnap = await getDoc(cvDocRef);
+            itemData.presentation = sanitizeOrder(itemData.presentation);
+            itemData.diplomes = sanitizeOrder(itemData.diplomes);
+            itemData.formations = sanitizeOrder(itemData.formations);
+            itemData.competences = sanitizeOrder(itemData.competences);
+            itemData.experiences = sanitizeOrder(itemData.experiences);
 
-        if (cvDocSnap.exists()) {
-          const data: CvInterface = cvDocSnap.data();
-          setCvData(data);
-        }
-
-        setIsLoading(false);
-      })();
-    }
-  }, [email]);
-
-  React.useEffect(() => {
-    if (!isLoading) {
-      if (!cvData) {
-        navigate('/cv-upload');
-      } else if (cvData) {
-        if (
-          !cvData.completedSteps ||
-          (cvData.completedSteps && cvData.completedSteps.interviewCompleted)
-        ) {
-          navigate('/test-landing');
-        } else {
-          setCurrentQuestion(interviews.length);
-        }
-
-        if (
-          cvData.completedSteps &&
-          cvData.completedSteps.cvUploaded &&
-          !cvData.completedSteps.anonymisation
-        ) {
-          (async () => {
-            // CV PROCESSING
-            const openaiResponse = await chat([
-              { role: 'system', content: cvProcessing.trim() },
+            await setDoc(
+              doc(db, 'cvs', userId),
               {
-                role: 'user',
-                content: `Contenu du CV : ${cvData.cvContent}`.trim(),
+                presentation: itemData.presentation[0].content,
+                diplomes: itemData.diplomes,
+                formations: itemData.formations,
+                competences: itemData.competences,
+                experiences: itemData.experiences,
               },
-            ]);
+              { merge: true }
+            );
 
-            if (openaiResponse.content) {
-              const itemData: {
-                presentation: { content: string; order: number }[];
-                diplomes: { content: string; order: number }[];
-                formations: { content: string; order: number }[];
-                competences: { content: string; order: number }[];
-                experiences: { content: string; order: number }[];
-              } = extractJson(openaiResponse.content);
+            let messageContent = 'Contenu du CV :\n';
 
-              itemData.presentation = sanitizeOrder(itemData.presentation);
-              itemData.diplomes = sanitizeOrder(itemData.diplomes);
-              itemData.formations = sanitizeOrder(itemData.formations);
-              itemData.competences = sanitizeOrder(itemData.competences);
-              itemData.experiences = sanitizeOrder(itemData.experiences);
-
-              await setDoc(
-                doc(db, 'cvs', email),
-                {
-                  email,
-                  presentation: itemData.presentation[0].content,
-                  diplomes: itemData.diplomes,
-                  formations: itemData.formations,
-                  competences: itemData.competences,
-                  experiences: itemData.experiences,
-                },
-                { merge: true }
-              );
-
-              let messageContent = 'Contenu du CV :\n';
-
-              if (itemData.diplomes && itemData.diplomes.length > 0) {
-                messageContent += `\nDiplômes :\n${itemData.diplomes
-                  .map((c) => c.content)
-                  .join('\n')}`;
-              }
-
-              if (itemData.formations && itemData.formations.length > 0) {
-                messageContent += `\nFormations :\n${itemData.formations
-                  .map((c) => c.content)
-                  .join('\n')}`;
-              }
-
-              if (itemData.competences && itemData.competences.length > 0) {
-                messageContent += `\nCompétences :\n${itemData.competences
-                  .map((c) => c.content)
-                  .join('\n')}`;
-              }
-
-              if (itemData.experiences && itemData.experiences.length > 0) {
-                messageContent += `\nExpériences :\n${itemData.experiences
-                  .map((c) => c.content)
-                  .join('\n')}`;
-              }
-
-              // DIPLOMES ANONYME
-              if (itemData.diplomes.length > 0) {
-                const openaiItemResponse = await chat([
-                  { role: 'system', content: diplomeAnonym.trim() },
-                  { role: 'user', content: messageContent.trim() },
-                ]);
-
-                if (openaiItemResponse.content) {
-                  const itemData: string[] = extractJson(
-                    openaiItemResponse.content
-                  );
-
-                  await setDoc(
-                    doc(db, 'cvs', email),
-                    { email, diplomes_anonym: itemData },
-                    { merge: true }
-                  );
-                }
-              }
-
-              // FORMATION ANONYME
-              if (itemData.formations.length > 0) {
-                const openaiItemResponse = await chat([
-                  { role: 'system', content: formationAnonym.trim() },
-                  { role: 'user', content: messageContent.trim() },
-                ]);
-
-                if (openaiItemResponse.content) {
-                  const itemData: { content: string }[] = extractJson(
-                    openaiItemResponse.content
-                  );
-
-                  await setDoc(
-                    doc(db, 'cvs', email),
-                    { email, formations_anonym: itemData },
-                    { merge: true }
-                  );
-                }
-              }
-
-              // COMPETENCES ANONYME
-              if (itemData.competences.length > 0) {
-                const openaiItemResponse = await chat([
-                  { role: 'system', content: competenceAnonym.trim() },
-                  { role: 'user', content: messageContent.trim() },
-                ]);
-
-                if (openaiItemResponse.content) {
-                  const itemData: { content: string } = extractJson(
-                    openaiItemResponse.content
-                  );
-
-                  await setDoc(
-                    doc(db, 'cvs', email),
-                    { email, competence_anonym: itemData.content },
-                    { merge: true }
-                  );
-                }
-              }
-
-              // EXPERIENCES ANONYME
-              if (itemData.experiences.length > 0) {
-                const openaiExperienceResponse = await chat([
-                  { role: 'system', content: experienceAnonym.trim() },
-                  { role: 'user', content: messageContent.trim() },
-                ]);
-
-                if (openaiExperienceResponse.content) {
-                  const itemData: {
-                    title: string;
-                    date: string;
-                    company: string;
-                    description: string;
-                  }[] = extractJson(openaiExperienceResponse.content);
-
-                  await setDoc(
-                    doc(db, 'cvs', email),
-                    { email, experiences_anonym: itemData },
-                    { merge: true }
-                  );
-                }
-              }
-
-              await setDoc(
-                doc(db, 'cvs', email),
-                { email, completedSteps: { anonymisation: true } },
-                { merge: true }
-              );
+            if (itemData.diplomes && itemData.diplomes.length > 0) {
+              messageContent += `\nDiplômes :\n${itemData.diplomes
+                .map((c) => c.content)
+                .join('\n')}`;
             }
-          })();
-        }
+
+            if (itemData.formations && itemData.formations.length > 0) {
+              messageContent += `\nFormations :\n${itemData.formations
+                .map((c) => c.content)
+                .join('\n')}`;
+            }
+
+            if (itemData.competences && itemData.competences.length > 0) {
+              messageContent += `\nCompétences :\n${itemData.competences
+                .map((c) => c.content)
+                .join('\n')}`;
+            }
+
+            if (itemData.experiences && itemData.experiences.length > 0) {
+              messageContent += `\nExpériences :\n${itemData.experiences
+                .map((c) => c.content)
+                .join('\n')}`;
+            }
+
+            // DIPLOMES ANONYME
+            if (itemData.diplomes.length > 0) {
+              const openaiItemResponse = await chat([
+                { role: 'system', content: diplomeAnonym.trim() },
+                { role: 'user', content: messageContent.trim() },
+              ]);
+
+              if (openaiItemResponse.content) {
+                const itemData: string[] = extractJson(
+                  openaiItemResponse.content
+                );
+
+                await setDoc(
+                  doc(db, 'cvs', userId),
+                  { diplomes_anonym: itemData },
+                  { merge: true }
+                );
+              }
+            }
+
+            // FORMATION ANONYME
+            if (itemData.formations.length > 0) {
+              const openaiItemResponse = await chat([
+                { role: 'system', content: formationAnonym.trim() },
+                { role: 'user', content: messageContent.trim() },
+              ]);
+
+              if (openaiItemResponse.content) {
+                const itemData: { content: string }[] = extractJson(
+                  openaiItemResponse.content
+                );
+
+                await setDoc(
+                  doc(db, 'cvs', userId),
+                  { formations_anonym: itemData },
+                  { merge: true }
+                );
+              }
+            }
+
+            // COMPETENCES ANONYME
+            if (itemData.competences.length > 0) {
+              const openaiItemResponse = await chat([
+                { role: 'system', content: competenceAnonym.trim() },
+                { role: 'user', content: messageContent.trim() },
+              ]);
+
+              if (openaiItemResponse.content) {
+                const itemData: { content: string } = extractJson(
+                  openaiItemResponse.content
+                );
+
+                await setDoc(
+                  doc(db, 'cvs', userId),
+                  { competence_anonym: itemData.content },
+                  { merge: true }
+                );
+              }
+            }
+
+            // EXPERIENCES ANONYME
+            if (itemData.experiences.length > 0) {
+              const openaiExperienceResponse = await chat([
+                { role: 'system', content: experienceAnonym.trim() },
+                { role: 'user', content: messageContent.trim() },
+              ]);
+
+              if (openaiExperienceResponse.content) {
+                const itemData: {
+                  title: string;
+                  date: string;
+                  company: string;
+                  description: string;
+                }[] = extractJson(openaiExperienceResponse.content);
+
+                await setDoc(
+                  doc(db, 'cvs', userId),
+                  { experiences_anonym: itemData },
+                  { merge: true }
+                );
+              }
+            }
+
+            await setDoc(
+              doc(db, 'cvs', userId),
+              { completedSteps: { anonymisation: true } },
+              { merge: true }
+            );
+          }
+        })();
       }
     }
-  }, [isLoading, cvData, interviews]);
+  }, [userId, cv, interviews]);
 
   const startRecording = async () => {
     try {
@@ -334,7 +303,6 @@ export default function InterviewQuestionsPage() {
         setIsLoadingResponse(true);
       }
 
-      const interviewsDocRef = doc(db, 'interviews', email);
       const openaiResponse = await chat([
         { role: 'system', content: responseAnonym.trim() },
         {
@@ -353,7 +321,7 @@ export default function InterviewQuestionsPage() {
         );
 
         await setDoc(
-          interviewsDocRef,
+          doc(db, 'interviews', userId),
           {
             answers: arrayUnion({
               answer: audioAnswer ? audioAnswer.trim() : answer.trim(),
@@ -371,12 +339,19 @@ export default function InterviewQuestionsPage() {
         setCurrentQuestion(currentQuestion + 1);
       } else {
         await setDoc(
-          doc(db, 'cvs', email),
-          { email, completedSteps: { interviewCompleted: true } },
+          doc(db, 'cvs', userId),
+          { completedSteps: { interviewCompleted: true } },
           { merge: true }
         );
 
-        navigate('/test-landing');
+        const cvDocSnap = await getDoc(doc(db, 'cvs', userId));
+
+        if (cvDocSnap.exists()) {
+          const data: CvInterface = cvDocSnap.data();
+          dispatch(updateUserReducer({ cv: data }));
+        }
+
+        navigate(`/${userId}/test-landing`);
       }
 
       setIsLoadingResponse(false);

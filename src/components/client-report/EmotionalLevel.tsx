@@ -17,7 +17,6 @@ import {
   ScriptableContext,
   Tooltip,
 } from 'chart.js';
-import { TestResponseInterface } from '../../interfaces/TestResponse.interface';
 import { getSyntheseValue, getValueForScore } from '../../lib/function';
 
 ChartJS.register(
@@ -35,35 +34,22 @@ ChartJS.register(
 
 const barOptions: ChartOptions<'bar'> = {
   responsive: true,
-  plugins: {
-    legend: {
-      display: false,
-    },
-  },
+  plugins: { legend: { display: false } },
   scales: {
     y: {
       beginAtZero: true,
       max: 100,
-      grid: {
-        color: 'rgba(255, 255, 255, 0.05)',
-        drawBorder: false,
-      },
+      grid: { color: 'rgba(255, 255, 255, 0.05)' },
       ticks: {
         color: 'rgba(255, 255, 255, 0.6)',
-        font: {
-          size: 12,
-        },
+        font: { size: 12 },
       },
     },
     x: {
-      grid: {
-        display: false,
-      },
+      grid: { display: false },
       ticks: {
         color: 'rgba(255, 255, 255, 0.6)',
-        font: {
-          size: 12,
-        },
+        font: { size: 12 },
       },
     },
   },
@@ -89,9 +75,11 @@ const baseColors = [
 ];
 
 export default function EmotionalLevel({
-  tests,
+  average,
+  result,
 }: {
-  tests: TestResponseInterface[];
+  average: number;
+  result: number[];
 }) {
   const chartRef = React.useRef<ChartJS<'bar'>>(null);
 
@@ -99,7 +87,7 @@ export default function EmotionalLevel({
     labels: ['Risque terrain', 'Implication émotionnelle', 'Force de décision'],
     datasets: [
       {
-        data: [0, 0, 0],
+        data: result,
         // on met une fonction scriptable qui retourne UN CanvasGradient à la fois
         backgroundColor: (context: ScriptableContext<'bar'>) => {
           const chart = context.chart;
@@ -125,7 +113,6 @@ export default function EmotionalLevel({
       },
     ],
   });
-  const [average, setAverage] = React.useState<number | null>(null);
 
   // on génère explicitement les gradients une fois le chart monté
   React.useEffect(() => {
@@ -137,90 +124,59 @@ export default function EmotionalLevel({
   }, [chartRef.current]);
 
   React.useEffect(() => {
-    if (tests) {
-      const scores = tests.map((item) => item.score);
-      setAverage(
-        scores.length > 0
-          ? scores.reduce((acc, val) => acc + val, 0) / scores.length
-          : 0
-      );
-    }
-  }, [tests]);
-
-  React.useEffect(() => {
-    if (typeof average === 'number') {
-      const chart = chartRef.current;
-      if (!chart) return;
-
-      let newAverage = Math.ceil(average * 100);
-
-      // Étape 1 : si divisible par 5, on ajoute ou retire 3 aléatoirement
-      if (newAverage % 5 === 0) {
-        const variation = Math.random() < 0.5 ? -3 : 3;
-        newAverage += variation;
-      }
-
-      // Étape 2 : on génère 3 valeurs différentes avec un écart de ±5
-      const data = Array.from({ length: 3 }, () => {
-        const delta = Math.floor(Math.random() * 11) - 5; // nombre aléatoire entre -5 et 5
-        return newAverage + delta;
-      });
-
+    if (result) {
       setChartData((prev) => ({
         ...prev,
         datasets: [
           {
             ...prev.datasets[0],
-            data,
+            data: result,
           },
         ],
       }));
     }
-  }, [average]);
+  }, [result]);
 
-  if (typeof average === 'number')
-    return (
-      <div className="bg-[#1A1E2E]/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 mb-8">
-        <h2 className="text-2xl font-bold mb-6">
-          Niveau d'imprégnation émotivo-professionnelle
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="h-[300px]">
-            <Bar ref={chartRef} data={chartData} options={barOptions} />
-          </div>
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2 text-[#FF6B00]">
-                  Risque terrain
-                </h3>
-                <p className="text-sm text-gray-300">
-                  {getValueForScore(1, average)}
-                </p>
-              </div>
-              <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2 text-[#FF6B00]">
-                  Implication émotionnelle
-                </h3>
-                <p className="text-sm text-gray-300">
-                  {getValueForScore(2, average)}
-                </p>
-              </div>
-              <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2 text-[#FF6B00]">
-                  Force de décision
-                </h3>
-                <p className="text-sm text-gray-300">
-                  {getValueForScore(3, average)}
-                </p>
-              </div>
+  return (
+    <div className="bg-[#1A1E2E]/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 mb-8">
+      <h2 className="text-2xl font-bold mb-6">Niveau d'imprégnation métier</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="h-[300px]">
+          <Bar ref={chartRef} data={chartData} options={barOptions} />
+        </div>
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-[#0A0E17]/50 rounded-lg p-4">
+              <h3 className="font-semibold mb-2 text-[#FF6B00]">
+                Risque terrain
+              </h3>
+              <p className="text-sm text-gray-300">
+                {getValueForScore(1, average)}
+              </p>
             </div>
             <div className="bg-[#0A0E17]/50 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 text-[#FF6B00]">Synthèse</h3>
-              <p className="text-gray-300">{getSyntheseValue(average)}</p>
+              <h3 className="font-semibold mb-2 text-[#FF6B00]">
+                Implication émotionnelle
+              </h3>
+              <p className="text-sm text-gray-300">
+                {getValueForScore(2, average)}
+              </p>
             </div>
+            <div className="bg-[#0A0E17]/50 rounded-lg p-4">
+              <h3 className="font-semibold mb-2 text-[#FF6B00]">
+                Force de décision
+              </h3>
+              <p className="text-sm text-gray-300">
+                {getValueForScore(3, average)}
+              </p>
+            </div>
+          </div>
+          <div className="bg-[#0A0E17]/50 rounded-lg p-4">
+            <h3 className="font-semibold mb-2 text-[#FF6B00]">Synthèse</h3>
+            <p className="text-gray-300">{getSyntheseValue(average)}</p>
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
 }

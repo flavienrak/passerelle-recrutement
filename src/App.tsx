@@ -1,48 +1,126 @@
-import React from 'react';
-import HomePage from './pages/HomePage';
-import CvUploadPage from './pages/CvUploadPage';
-import InterviewQuestionsPage from './pages/InterviewQuestionsPage';
-import TestLanding from './pages/TestLanding';
-import TestPage from './pages/TestPage';
-import ResultsPage from './pages/ResultsPage';
-import MicroFormationPage from './pages/MicroFormationPage';
-import ReportingPage from './pages/ReportingPage';
+import React, { Suspense } from 'react';
+import Loader from './components/Loader';
 import ReduxProvider from './providers/Redux.provider';
-import UserProvider from './providers/User.provider';
-import PrevisualisationPage from './pages/PrevisualisationPage';
-import ConditionsPage from './pages/ConditionsPage';
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-function App() {
+const HomePage = React.lazy(() => import('./pages/HomePage'));
+const UserLayout = React.lazy(() => import('./layouts/UserLayout'));
+const CvUploadPage = React.lazy(() => import('./pages/CvUploadPage'));
+const InterviewQuestionsPage = React.lazy(
+  () => import('./pages/InterviewQuestionsPage')
+);
+const TestLanding = React.lazy(() => import('./pages/TestLanding'));
+const TestPage = React.lazy(() => import('./pages/TestPage'));
+const ResultsPage = React.lazy(() => import('./pages/ResultsPage'));
+const MicroFormationPage = React.lazy(
+  () => import('./pages/MicroFormationPage')
+);
+const ReportingPage = React.lazy(() => import('./pages/ReportingPage'));
+const PrevisualisationPage = React.lazy(
+  () => import('./pages/PrevisualisationPage')
+);
+const ConditionsPage = React.lazy(() => import('./pages/ConditionsPage'));
+
+export default function App() {
   return (
     <BrowserRouter>
       <ReduxProvider>
-        <UserProvider>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/conditions" element={<ConditionsPage />} />
-            <Route path="/cv-upload" element={<CvUploadPage />} />
-            <Route path="/interview" element={<InterviewQuestionsPage />} />
-            <Route path="/test-landing" element={<TestLanding />} />
-            <Route path="/test" element={<TestPage />} />
-            <Route path="/results" element={<ResultsPage />} />
-            <Route path="/formation" element={<MicroFormationPage />} />
-            <Route path="/reporting" element={<ReportingPage />} />
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Suspense fallback={<Loader />}>
+                <HomePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/conditions"
+            element={
+              <Suspense fallback={<Loader />}>
+                <ConditionsPage />
+              </Suspense>
+            }
+          />
+
+          <Route
+            path="/cv-upload"
+            element={
+              <Suspense fallback={<Loader />}>
+                <CvUploadPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/:userId"
+            element={
+              <Suspense fallback={<Loader />}>
+                <UserLayout />
+              </Suspense>
+            }
+          >
             <Route
-              path="/previsualisation/:candidateEmail"
-              element={<PrevisualisationPage />}
-            />
+              index
+              element={
+                <Suspense fallback={<Loader />}>
+                  <PrevisualisationPage />
+                </Suspense>
+              }
+            ></Route>
             <Route
-              path="/client-report/:candidateEmail"
-              element={<ReportingPage />}
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </UserProvider>
+              path="interview"
+              element={
+                <Suspense fallback={<Loader />}>
+                  <InterviewQuestionsPage />
+                </Suspense>
+              }
+            ></Route>
+            <Route
+              path="test-landing"
+              element={
+                <Suspense fallback={<Loader />}>
+                  <TestLanding />
+                </Suspense>
+              }
+            ></Route>
+            <Route
+              path="test"
+              element={
+                <Suspense fallback={<Loader />}>
+                  <TestPage />
+                </Suspense>
+              }
+            ></Route>
+            <Route
+              path="results"
+              element={
+                <Suspense fallback={<Loader />}>
+                  <ResultsPage />
+                </Suspense>
+              }
+            ></Route>
+            <Route
+              path="formation"
+              element={
+                <Suspense fallback={<Loader />}>
+                  <MicroFormationPage />
+                </Suspense>
+              }
+            ></Route>
+            <Route
+              path="reporting"
+              element={
+                <Suspense fallback={<Loader />}>
+                  <ReportingPage />
+                </Suspense>
+              }
+            ></Route>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </ReduxProvider>
     </BrowserRouter>
   );
 }
-
-export default App;

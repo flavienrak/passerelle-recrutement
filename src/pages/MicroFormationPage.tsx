@@ -3,7 +3,7 @@ import Layout from '../components/Layout';
 import Card from '../components/Card';
 import Button from '../components/Button';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   BrainCircuit,
   ExternalLink,
@@ -13,11 +13,16 @@ import {
   Zap,
 } from 'lucide-react';
 
-const MicroFormationPage: React.FC = () => {
+export default function MicroFormationPage() {
+  const { userId } = useParams();
   const navigate = useNavigate();
 
   return (
-    <Layout currentStep={6} showBackButton onBack={() => navigate('/results')}>
+    <Layout
+      currentStep={6}
+      showBackButton
+      onBack={() => navigate(`/${userId}/results`)}
+    >
       <div className="flex flex-col items-center justify-center flex-1 px-4 py-8">
         <div className="w-full max-w-4xl">
           <div className="text-center mb-8">
@@ -197,11 +202,7 @@ const MicroFormationPage: React.FC = () => {
               compréhension de vos forces cognitives et d'outils pour les
               valoriser en entretien.
             </p>
-            <Button
-              onClick={() => {
-                navigate('/results');
-              }}
-            >
+            <Button onClick={() => navigate(`/${userId}/results`)}>
               Revoir mes résultats
             </Button>
           </div>
@@ -209,6 +210,4 @@ const MicroFormationPage: React.FC = () => {
       </div>
     </Layout>
   );
-};
-
-export default MicroFormationPage;
+}

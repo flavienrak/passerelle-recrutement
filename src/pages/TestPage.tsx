@@ -3,30 +3,27 @@ import Layout from '../components/Layout';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { updatePersistReducer } from '../redux/slices/persist.slice';
-import { doc, getDoc, setDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { testQuestions } from '../lib/constants';
-import { TestInterviewInterface } from '../interfaces/TestInterview.interface';
 import { updateUserReducer } from '../redux/slices/user.slice';
 import { CvInterface } from '../interfaces/Cv.interface';
 
 export default function TestPage() {
   const duration = 30;
-  const { email, timer, currentQuestion } = useSelector(
+  const { cv, tests } = useSelector((state: RootState) => state.user);
+  const { timer, currentQuestion } = useSelector(
     (state: RootState) => state.persistInfos
   );
+  const { userId } = useParams();
+
   const dispatch = useDispatch();
 
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [cvData, setCvData] = React.useState<CvInterface | null>(null);
-  const [tests, setTests] = React.useState<TestInterviewInterface>({
-    answers: [],
-  });
   const [currentAnswer, setCurrentAnswer] = React.useState<{
     value: string;
     score: number;
@@ -41,38 +38,9 @@ export default function TestPage() {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (!email) {
-      navigate('/');
-    } else {
-      (async () => {
-        setIsLoading(true);
-
-        const testsDocRef = doc(db, 'tests', email);
-        const testsDocSnap = await getDoc(testsDocRef);
-
-        if (testsDocSnap.exists()) {
-          const data = testsDocSnap.data();
-          dispatch(updateUserReducer({ tests: data }));
-          setTests(data);
-        }
-
-        const cvDocRef = doc(db, 'cvs', email);
-        const cvDocSnap = await getDoc(cvDocRef);
-
-        if (cvDocSnap.exists()) {
-          const data: CvInterface = cvDocSnap.data();
-          setCvData(data);
-        }
-
-        setIsLoading(false);
-      })();
-    }
-  }, [email]);
-
-  React.useEffect(() => {
-    if (!isLoading) {
-      if (cvData?.completedSteps && cvData.completedSteps.testCompleted) {
-        navigate('/results');
+    if (userId && cv) {
+      if (cv.completedSteps && cv.completedSteps.testCompleted) {
+        navigate(`/${userId}/results`);
       } else {
         dispatch(
           updatePersistReducer({
@@ -81,7 +49,7 @@ export default function TestPage() {
         );
       }
     }
-  }, [isLoading, cvData, tests.answers]);
+  }, [userId, cv, tests.answers]);
 
   React.useEffect(() => {
     if (testStarted) {
@@ -105,15 +73,13 @@ export default function TestPage() {
   React.useEffect(() => {
     if (currentAnswer) {
       (async () => {
-        const interviewsDocRef = doc(db, 'tests', email);
-
         const modifiedScore =
           currentAnswer.score <= 0.25
             ? currentAnswer.score + 0.01 * timer
             : currentAnswer.score;
 
         await setDoc(
-          interviewsDocRef,
+          doc(db, 'tests', userId),
           {
             answers: arrayUnion({
               answer: currentAnswer.value,
@@ -137,14 +103,20 @@ export default function TestPage() {
           );
         } else {
           await setDoc(
-            doc(db, 'cvs', email),
-            { email, completedSteps: { testCompleted: true } },
+            doc(db, 'cvs', userId),
+            { completedSteps: { testCompleted: true } },
             { merge: true }
           );
 
-          navigate('/results');
-        }
+          const cvDocSnap = await getDoc(doc(db, 'cvs', userId));
 
+          if (cvDocSnap.exists()) {
+            const data: CvInterface = cvDocSnap.data();
+            dispatch(updateUserReducer({ cv: data }));
+          }
+
+          navigate(`/${userId}/results`);
+        }
         setCurrentAnswer(null);
       })();
     }

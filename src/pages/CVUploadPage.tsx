@@ -3,27 +3,29 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import FileUpload from '../components/FileUpload';
 import Layout from '../components/Layout';
-
-import { useNavigate } from 'react-router-dom';
-import { extractTextFromDocx, extractTextFromPDF } from '../lib/function';
-import { updatePersistReducer } from '../redux/slices/persist.slice';
-import { useDispatch, useSelector } from 'react-redux';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { RootState } from '../redux/store';
 import Conditions from '../components/cv-upload/Conditions';
 
-export default function CvUploadPage() {
-  const { acceptConditions } = useSelector(
-    (state: RootState) => state.persistInfos
-  );
+import { useNavigate } from 'react-router-dom';
+import {
+  extractTextFromDocx,
+  extractTextFromPDF,
+  generateUniqueId,
+} from '../lib/function';
+import { updatePersistReducer } from '../redux/slices/persist.slice';
+import { useDispatch } from 'react-redux';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { CvInterface } from '../interfaces/Cv.interface';
+import { updateUserReducer } from '../redux/slices/user.slice';
 
+export default function CvUploadPage() {
   const dispatch = useDispatch();
 
   const [email, setEmail] = React.useState('');
   const [cv, setCv] = React.useState<File | null>(null);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [acceptConditions, setAcceptConditions] = React.useState(false);
 
   const navigate = useNavigate();
 
@@ -63,9 +65,11 @@ export default function CvUploadPage() {
       dispatch(updatePersistReducer({ email }));
       const cvContent = await handleFile(cv);
 
+      const userId = generateUniqueId();
       await setDoc(
-        doc(db, 'cvs', email),
+        doc(db, 'cvs', userId),
         {
+          id: userId,
           email,
           cvContent: cvContent.trim(),
           acceptConditions: true,
@@ -76,15 +80,23 @@ export default function CvUploadPage() {
         },
         { merge: true }
       );
+
+      const cvDocSnap = await getDoc(doc(db, 'cvs', userId));
+
+      if (cvDocSnap.exists()) {
+        const data: CvInterface = cvDocSnap.data();
+        dispatch(updateUserReducer({ cv: data }));
+      }
+
+      navigate(`/${userId}/interview`);
     }
 
     setIsSubmitting(false);
-    navigate('/interview');
   };
 
   return (
     <Layout currentStep={1}>
-      <div className="flex flex-col items-center justify-center flex-1 px-4 py-16">
+      <div className="flex flex-col items-center justify-center flex-1 px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-3">Déposez votre CV</h1>
@@ -130,7 +142,7 @@ export default function CvUploadPage() {
                   fullWidth
                   loading={isSubmitting}
                   disabled={isSubmitting}
-                  className="mt-4 py-3 text-lg font-medium bg-gradient-to-r from-[#FF6B00] to-[#FF8124] hover:from-[#FF8124] hover:to-[#FF9346] transition-all duration-300 shadow-lg shadow-[#FF6B00]/20"
+                  className="py-3 text-lg font-medium bg-gradient-to-r from-[#FF6B00] to-[#FF8124] hover:from-[#FF8124] hover:to-[#FF9346] transition-all duration-300 shadow-lg shadow-[#FF6B00]/20"
                 >
                   Compléter mon profil en 2 minutes
                 </Button>
@@ -139,7 +151,7 @@ export default function CvUploadPage() {
           </Card>
         </div>
 
-        {!acceptConditions && <Conditions />}
+        {!acceptConditions && <Conditions onAccept={setAcceptConditions} />}
       </div>
     </Layout>
   );

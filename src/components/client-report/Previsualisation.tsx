@@ -7,10 +7,6 @@ import ResultatCognitif from '../../components/client-report/ResultatCognitif';
 import SyntheseGlobale from '../../components/client-report/SyntheseGlobale';
 
 import { useParams } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import { InterviewInterface } from '../../interfaces/Interview.interface';
-import { UserInterface } from '../../interfaces/User.interface';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { MatriceValueInterface } from '../../interfaces/client-report/MatriceValue.interface';
@@ -21,15 +17,17 @@ export default function Previsualisation({
 }: {
   showHeader?: boolean;
 }) {
-  const { tests } = useSelector((state: RootState) => state.user);
-  const { candidateEmail } = useParams();
+  const { cv, interviews, tests } = useSelector(
+    (state: RootState) => state.user
+  );
+  const { userId } = useParams();
 
   const [copied, setCopied] = React.useState(false);
-  const [userInfos, setUserInfos] = React.useState<UserInterface | null>(null);
-  const [interviews, setInterviews] = React.useState<InterviewInterface[]>([]);
   const [selectedFamily, setSelectedFamily] = React.useState<string | null>(
     null
   );
+  const [average, setAverage] = React.useState<number | null>(null);
+  const [cognitifResult, setCognitifResult] = React.useState([0, 0, 0]);
   const [values, setValues] = React.useState<MatriceValueInterface>({
     m1: 0,
     m2: 0,
@@ -42,6 +40,16 @@ export default function Previsualisation({
 
   React.useEffect(() => {
     if (tests.answers && tests.answers.length > 0) {
+      const scores = tests.answers
+        .filter((item) => item.questionNumber >= 0 && item.questionNumber <= 4)
+        .map((item) => item.score);
+
+      setAverage(
+        scores.length > 0
+          ? scores.reduce((acc, val) => acc + val, 0) / scores.length
+          : 0
+      );
+
       const finalValues = {} as MatriceValueInterface;
 
       // 1️⃣ On calcule d'abord la moyenne
@@ -79,7 +87,10 @@ export default function Previsualisation({
         }
 
         r = parseFloat(r.toFixed(2));
-        finalValues[`m${item.id}` as keyof MatriceValueInterface] = r;
+        finalValues[`m${item.id}` as keyof MatriceValueInterface] = Math.max(
+          0,
+          Math.min(1, r)
+        );
       });
 
       // 3️⃣ On met tout à jour **une seule fois**
@@ -88,27 +99,24 @@ export default function Previsualisation({
   }, [tests.answers]);
 
   React.useEffect(() => {
-    if (candidateEmail) {
-      (async () => {
-        const cvDocRef = doc(db, 'cvs', candidateEmail);
-        const cvDocSnap = await getDoc(cvDocRef);
+    if (typeof average === 'number') {
+      let newAverage = Math.ceil(average * 100);
 
-        if (cvDocSnap.exists()) {
-          const data: UserInterface = cvDocSnap.data();
+      // Étape 1 : si divisible par 5, on ajoute ou retire 3 aléatoirement
+      if (newAverage % 5 === 0) {
+        const variation = Math.random() < 0.5 ? -3 : 3;
+        newAverage += variation;
+      }
 
-          setUserInfos(data);
-        }
+      // Étape 2 : on génère 3 valeurs différentes avec un écart de ±5
+      const data = Array.from({ length: 3 }, () => {
+        const delta = Math.floor(Math.random() * 11) - 5; // nombre aléatoire entre -5 et 5
+        return newAverage + delta;
+      });
 
-        const interviewsDocRef = doc(db, 'interviews', candidateEmail);
-        const docSnap = await getDoc(interviewsDocRef);
-
-        if (docSnap.exists()) {
-          const data: { answers: InterviewInterface[] } = docSnap.data();
-          setInterviews(data.answers);
-        }
-      })();
+      setCognitifResult(data);
     }
-  }, [candidateEmail]);
+  }, [average]);
 
   React.useEffect(() => {
     if (copied) {
@@ -123,13 +131,13 @@ export default function Previsualisation({
 
   const handleCopy = () => {
     navigator.clipboard
-      .writeText(`${window.location.origin}/previsualisation/${candidateEmail}`)
+      .writeText(`${window.location.origin}/${userId}`)
       .then(() => {
         setCopied(true);
       });
   };
 
-  if (userInfos)
+  if (cv && average)
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0A0E17] to-[#1A1E2E] text-white flex flex-col">
         <div className="flex-1 p-8">
@@ -153,7 +161,7 @@ export default function Previsualisation({
                     href={'#contact'}
                     className="font-medium rounded-lg transition-all duration-200 focus:outline-none flex items-center justify-center py-2.5 px-5 bg-gradient-to-r from-[#EC4899] to-[#BE185D] text-white hover:opacity-80"
                   >
-                    Contacter le candidat
+                    Rapport du test cognitif
                   </a>
                   {showHeader && (
                     <Button
@@ -179,11 +187,11 @@ export default function Previsualisation({
               >
                 CV Anonyme
               </h2>
-              <CvAnonym user={userInfos} />
+              <CvAnonym cv={cv} />
 
               <h2
                 id={'pre-qualification'}
-                className="bg-gradient-to-r from-[#FF6B00] to-[#FF8124] text-transparent bg-clip-text text-5xl font-bold"
+                className="bg-gradient-to-r from-[#F59E0B] to-[#D97706] text-transparent bg-clip-text text-5xl font-bold"
               >
                 Synthèse pré-qualification
               </h2>
@@ -193,18 +201,13 @@ export default function Previsualisation({
             <div className="flex flex-col gap-12">
               <h2
                 id={'contact'}
-                className="bg-gradient-to-r from-[#FF6B00] to-[#FF8124] text-transparent bg-clip-text text-5xl font-bold"
+                className="bg-gradient-to-r from-[#EC4899] to-[#BE185D] text-transparent bg-clip-text text-5xl font-bold"
               >
-                Résultats cognitifs professionnels
+                Rapport du test cognitif
               </h2>
               <div className="flex flex-col gap-8">
-                {tests.answers && (
-                  <EmotionalLevel
-                    tests={tests.answers.filter(
-                      (item) =>
-                        item.questionNumber >= 0 && item.questionNumber <= 4
-                    )}
-                  />
+                {tests.answers && typeof average === 'number' && (
+                  <EmotionalLevel average={average} result={cognitifResult} />
                 )}
 
                 <ResultatCognitif
@@ -213,7 +216,11 @@ export default function Previsualisation({
                   setSelectedFamily={setSelectedFamily}
                 />
 
-                <SyntheseGlobale values={values} />
+                <SyntheseGlobale
+                  values={values}
+                  average={average}
+                  result={cognitifResult}
+                />
               </div>
             </div>
           </div>

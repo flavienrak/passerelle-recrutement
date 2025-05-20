@@ -9,7 +9,13 @@ const initialState: {
   cv: CvInterface | null;
 } = {
   interviews: [],
-  tests: { answers: [], synthese: '' },
+  tests: {
+    answers: [],
+    highContent: '',
+    weakContent: '',
+    synthese: '',
+    email: '',
+  },
   cv: null,
 };
 

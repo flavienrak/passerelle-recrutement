@@ -74,21 +74,3 @@ export function formatFileSize(bytes: number): string {
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
-
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from './firebase';
-
-export async function getCandidateFromFirestore(email: string) {
-    const q = query(collection(db, 'cvs'), where('email', '==', email));
-    const querySnapshot = await getDocs(q);
-
-    return querySnapshot.docs.map((data) => data.data());
-}
-
-export async function getInterviewsFromFirestore(email: string) {
-    const q = query(collection(db, 'interviews'), where('email', '==', email));
-    const querySnapshot = await getDocs(q);
-    
-
-    return querySnapshot.docs.map((data) => data.data());
-}

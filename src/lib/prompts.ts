@@ -64,12 +64,12 @@ const diplomeAnonym = `
 
   Consignes impératives pour CHAQUE diplôme :
 
-  1. Reformulation de l’intitulé :
+  1. Nom du diplôme :
+  -	Afficher seulement : Bac +2 OU Licence OU Master 1 OU Master 2 ...
+
+  2. Reformulation de l’intitulé :
   - Intitulé reformulé en termes universels (sans jargon)
   - Max. 20 caractères (espaces inclus)
-
-  2. Nom des diplômes :
-  - Ne pas reformuler les noms
 
   3. Type d’établissement (1 seul choix) :
   [Université historique | Grande école | École spécialisée | Centre certifié]
@@ -92,7 +92,7 @@ const diplomeAnonym = `
   - Ne jamais sortir du format demandé.
 
   Format attendu (array of string) :
-  [ "[Nom du diplôme] : [Intitulé reformulé] - [Catégorie]\\n\\nReconnaissance : [Description en 1-7 mots]\\n\\nRéputation : [★☆☆☆☆ à ★★★★★] + [Commentaire]" ]
+  [ "[Nom du diplôme] : [Intitulé reformulé] - [Type d’établissement]\\n\\nReconnaissance : [Description en 1-7 mots]\\n\\nRéputation : [★☆☆☆☆ à ★★★★★] + [Commentaire]" ]
   }
 `;
 
@@ -235,21 +235,45 @@ const responseAnonym = `
   - Ne jamais sortir du format demandé.
 
   Format attendu :
-  {
-    "content": "..."
-  }
+  { content: "..." }
 `;
 
 const syntheseGlobal = `
-  Tu es un coach recruteur expert qui analyse les résultats, sur la base des pourcentages de chaque matrices, produit un texte de 510 caractères qui résume les éléments clés du candidat. 
-  L'objectif est de bien souligner les côtés positifs du candidat tout en restant réaliste.
+  Tu es un coach recruteur expert qui analyse les résultats, 
+  sur la base des pourcentages de chaque matrices, produit 
+  un texte de 510 caractères qui résume les éléments clés du candidat.
+  
+  Mission :
+  - Bien souligner les côtés positifs du candidat tout en restant réaliste.
 
   Contraintes :
+  - Un seul objet JSON.
+  - Pas de texte hors format.
+  - Ne jamais sortir du format demandé.
+
+  Format attendu :
+  { content: "..." }
+`;
+
+const highWeakSynthese = `
+  Tu es un coach recruteur expert qui analyse les résultats, 
+  sur la base des pourcentages de chaque matrices.
+
+  Mission :
+  Donne en 500 caractères,
+  - Les forces principales du profil en 3 bullet point.
+  - Le potentiel d’évolution du profil en 3 bullet point en insistant sur les aspects positifs.
+
+  Contraintes :
+  - Chaque bullet point à la ligne.
+  - Un seul objet JSON.
+  - Pas de texte hors format.
   - Ne jamais sortir du format demandé.
 
   Format attendu :
   {
-    "content": "..."
+    highContent: "• Bullet point 1\\n\\n• Bullet point 2\\n\\n...", // Forces principales
+    weakContent: "• Bullet point 1\\n\\n• Bullet point 2\\n\\n..." // Potentiel d'évolution
   }
 `;
 
@@ -261,4 +285,5 @@ export {
   experienceAnonym,
   responseAnonym,
   syntheseGlobal,
+  highWeakSynthese,
 };

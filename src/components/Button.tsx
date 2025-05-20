@@ -20,7 +20,7 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseClasses =
-    'font-medium rounded-lg transition-all duration-200 focus:outline-none flex items-center justify-center';
+    'font-medium rounded-lg transition-all duration-200 focus:outline-none flex items-center justify-center select-none';
 
   const variantClasses = {
     primary: 'bg-[#FF6B00] hover:bg-[#FF8124] text-white',

@@ -1,7 +1,7 @@
 import React from 'react';
 import Button from '../components/Button';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Brain,
   Target,
@@ -10,33 +10,32 @@ import {
   ArrowRight,
   Download,
 } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { motion } from 'framer-motion';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { initialMatrice } from '../lib/constants';
 import { MatriceValueInterface } from '../interfaces/client-report/MatriceValue.interface';
-import { TestInterviewInterface } from '../interfaces/TestInterview.interface';
 import {
+  extractJson,
   getGlobalValueForScore,
   getValueForScore,
   percentage,
 } from '../lib/function';
-import { CvInterface } from '../interfaces/Cv.interface';
+import { chat } from '../lib/openai';
+import { getDoc, setDoc, doc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { updateUserReducer } from '../redux/slices/user.slice';
+import { highWeakSynthese } from '../lib/prompts';
 
 export default function ResultsPage() {
-  const { email } = useSelector((state: RootState) => state.persistInfos);
+  const { tests, cv } = useSelector((state: RootState) => state.user);
+  const { userId } = useParams();
 
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const [loadingSendReport, setLoadinSendReport] = React.useState(false);
-  const [cvData, setCvData] = React.useState<CvInterface | null>(null);
   const [globalScore, setGlobalScore] = React.useState(0);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [tests, setTests] = React.useState<TestInterviewInterface>({
-    answers: [],
-  });
   const [values, setValues] = React.useState<MatriceValueInterface>({
     m1: 0,
     m2: 0,
@@ -48,83 +47,100 @@ export default function ResultsPage() {
   });
 
   React.useEffect(() => {
-    if (email) {
-      (async () => {
-        const testsDocRef = doc(db, 'tests', email);
-        const testsDocSnap = await getDoc(testsDocRef);
-
-        if (testsDocSnap.exists()) {
-          const data = testsDocSnap.data();
-          setTests(data);
-        }
-
-        const cvDocRef = doc(db, 'cvs', email);
-        const cvDocSnap = await getDoc(cvDocRef);
-
-        if (cvDocSnap.exists()) {
-          const data: CvInterface = cvDocSnap.data();
-          setCvData(data);
-        }
-
-        setIsLoading(false);
-      })();
-    }
-  }, [email]);
-
-  React.useEffect(() => {
-    if (!isLoading && tests.answers) {
+    if (userId && cv && tests.answers) {
       if (
-        !cvData?.completedSteps ||
-        (cvData?.completedSteps && !cvData.completedSteps.testCompleted)
+        !cv.completedSteps ||
+        (cv.completedSteps && !cv.completedSteps.testCompleted)
       ) {
-        navigate('/test');
+        navigate(`/${userId}/test`);
       } else {
-        const finalValues = {} as MatriceValueInterface;
+        (async () => {
+          const finalValues = {} as MatriceValueInterface;
 
-        // 1️⃣ On calcule d'abord la moyenne
-        const withMoyennes = initialMatrice.map((item) => {
-          const scores = item.value
-            .map(
-              (qn) =>
-                tests.answers?.find((a) => a.questionNumber === qn)?.score ??
-                null
-            )
-            .filter((s): s is number => s !== null);
+          // 1️⃣ On calcule d'abord la moyenne
+          const withMoyennes = initialMatrice.map((item) => {
+            const scores = item.value
+              .map(
+                (qn) =>
+                  tests.answers?.find((a) => a.questionNumber === qn)?.score ??
+                  null
+              )
+              .filter((s): s is number => s !== null);
 
-          const moyenne =
-            scores.length > 0
-              ? scores.reduce((a, b) => a + b, 0) / scores.length
-              : 0;
+            const moyenne =
+              scores.length > 0
+                ? scores.reduce((a, b) => a + b, 0) / scores.length
+                : 0;
 
-          return {
-            ...item,
-            result: parseFloat(moyenne.toFixed(2)),
-          };
-        });
+            return {
+              ...item,
+              result: parseFloat(moyenne.toFixed(2)),
+            };
+          });
 
-        // 2️⃣ On applique sur ces moyennes tes règles (opt, bonus/malus, modulo 5)
-        withMoyennes.map((item) => {
-          const optResult =
-            withMoyennes.find((x) => x.id === item.opt)?.result ?? 0;
-          let r = item.result;
+          // 2️⃣ On applique sur ces moyennes tes règles (opt, bonus/malus, modulo 5)
+          withMoyennes.map((item) => {
+            const optResult =
+              withMoyennes.find((x) => x.id === item.opt)?.result ?? 0;
+            let r = item.result;
 
-          if (optResult > 0.75) r += 0.02;
-          else if (optResult < 0.4) r -= 0.03;
+            if (optResult > 0.75) r += 0.02;
+            else if (optResult < 0.4) r -= 0.03;
 
-          // modulo 5 aléatoire
-          if (Math.ceil(r * 100) % 5 === 0) {
-            r += Math.random() < 0.5 ? -0.03 : 0.03;
+            // modulo 5 aléatoire
+            if (Math.ceil(r * 100) % 5 === 0) {
+              r += Math.random() < 0.5 ? -0.03 : 0.03;
+            }
+
+            r = parseFloat(r.toFixed(2));
+            finalValues[`m${item.id}` as keyof MatriceValueInterface] =
+              Math.max(0, Math.min(1, r));
+          });
+
+          // 3️⃣ On met tout à jour **une seule fois**
+          setValues(finalValues);
+
+          if (!tests.highContent || !tests.weakContent) {
+            const messageContent = `
+              Sens de l'efficacité : ${percentage(finalValues.m1)}%\n
+              Analyse des situations : ${percentage(finalValues.m2)}%\n
+              Vision des problématiques : ${percentage(finalValues.m3)}%\n
+              Force créative : ${percentage(finalValues.m4)}%\n
+              Indépendance relationnelle : ${percentage(finalValues.m5)}%\n
+              Remise en question constructive : ${percentage(finalValues.m6)}%\n
+              Agilité à piloter en s'adaptant : ${percentage(finalValues.m7)}%
+            `;
+
+            const openaiResponse = await chat([
+              { role: 'system', content: highWeakSynthese.trim() },
+              { role: 'user', content: messageContent.trim() },
+            ]);
+
+            if (openaiResponse.content) {
+              const jsonData: { highContent: string; weakContent: string } =
+                extractJson(openaiResponse.content);
+
+              await setDoc(
+                doc(db, 'tests', userId),
+                {
+                  highContent: jsonData.highContent,
+                  weakContent: jsonData.weakContent,
+                },
+                { merge: true }
+              );
+
+              const testsDocSnap = await getDoc(doc(db, 'tests', userId));
+
+              if (testsDocSnap.exists()) {
+                const data = testsDocSnap.data();
+                dispatch(updateUserReducer({ tests: data }));
+              }
+            }
           }
-
-          r = parseFloat(r.toFixed(2));
-          finalValues[`m${item.id}` as keyof MatriceValueInterface] = r;
-        });
-
-        // 3️⃣ On met tout à jour **une seule fois**
-        setValues(finalValues);
+        })();
       }
     }
-  }, [isLoading, cvData, tests.answers]);
+  }, [userId, cv, tests]);
 
   React.useEffect(() => {
     if (values) {
@@ -148,11 +164,10 @@ export default function ResultsPage() {
   }, [values]);
 
   const handleSendReport = () => {
-    if (!email) return;
     // Simulate sending email
     setLoadinSendReport(true);
     setTimeout(() => {
-      navigate('/formation');
+      navigate(`/${userId}/formation`);
     }, 1000);
   };
 
@@ -175,19 +190,6 @@ export default function ResultsPage() {
             <h2 className="text-xl font-medium text-gray-800">
               Tendances observées de ton profil cognitif en situation
             </h2>
-            <div className="space-y-2">
-              <p className="text-gray-700 font-medium">
-                Analyse cognitive et pragmatique de ton cerveau :
-              </p>
-              <ul className="text-gray-600 space-y-1 pl-6">
-                <li>quels sont vos automatismes de pensées ?</li>
-                <li>
-                  quels sont vos réflexes de traitement d'une information ?
-                </li>
-                <li>où semblent ils efficace ?</li>
-                <li>où pourrait elle vous faire évoluer ?</li>
-              </ul>
-            </div>
             <p className="text-[#FF6B00] font-medium">
               Découvrez vos tendances de réaction en situation terrain.
             </p>
@@ -238,12 +240,12 @@ export default function ResultsPage() {
               <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-1">
                 <Target className="w-5 h-5 text-green-600" />
               </div>
-              <div>
+              <div className="flex flex-col gap-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Force Principale
                 </h3>
-                <p className="text-gray-700">
-                  Excellente capacité à arbitrer rapidement sous pression.
+                <p className="text-gray-700 leading-5 whitespace-pre-line">
+                  {tests.highContent}
                 </p>
               </div>
             </div>
@@ -251,13 +253,12 @@ export default function ResultsPage() {
               <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-1">
                 <ArrowRight className="w-5 h-5 text-amber-600" />
               </div>
-              <div>
+              <div className="flex flex-col gap-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Axe d'Amélioration
                 </h3>
-                <p className="text-gray-700">
-                  Renforcer la stabilité émotionnelle face à l'urgence pour
-                  fiabiliser les décisions critiques.
+                <p className="text-gray-700 leading-5 whitespace-pre-line">
+                  {tests.weakContent}
                 </p>
               </div>
             </div>

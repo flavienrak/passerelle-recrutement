@@ -2,6 +2,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 
+import { v4 as uuidv4 } from 'uuid';
 import workerSrc from 'pdfjs-dist/build/pdf.worker?url';
 import JSON5 from 'json5';
 import {
@@ -9,7 +10,6 @@ import {
   matriceSynthese,
   syntheseEvaluation,
 } from './constants';
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 const extractTextFromPDF = async (file: File): Promise<string> => {
@@ -142,6 +142,10 @@ const getGlobalValueForScore = (
   return opt?.value;
 };
 
+const generateUniqueId = (): string => {
+  return uuidv4();
+};
+
 export {
   extractTextFromPDF,
   extractTextFromDocx,
@@ -150,4 +154,5 @@ export {
   getSyntheseValue,
   getValueForScore,
   getGlobalValueForScore,
+  generateUniqueId,
 };

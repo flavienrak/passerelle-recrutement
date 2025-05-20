@@ -30,6 +30,7 @@ import { syntheseGlobal } from '../../lib/prompts';
 import { db } from '../../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { updateUserReducer } from '../../redux/slices/user.slice';
+import { colors } from '../../lib/colors';
 
 ChartJS.register(
   RadialLinearScale,
@@ -45,13 +46,13 @@ ChartJS.register(
 );
 
 const labelColors = [
-  '#EC4899',
-  '#EC4899',
-  '#3B82F6',
-  '#3B82F6',
-  '#3B82F6',
-  '#10B981',
-  '#10B981',
+  colors.blue,
+  colors.blue,
+  colors.purple,
+  colors.purple,
+  colors.pink,
+  colors.pink,
+  colors.pink,
 ];
 
 const coloredLabelsPlugin: Plugin<'radar'> = {
@@ -136,11 +137,9 @@ const spiderOptions: ChartOptions<'radar'> = {
 
 export default function SyntheseGlobale({
   average,
-  result,
   values,
 }: {
   average: number;
-  result: number[];
   values: MatriceValueInterface;
 }) {
   const { tests } = useSelector((state: RootState) => state.user);
@@ -340,7 +339,6 @@ export default function SyntheseGlobale({
           <SkillsLegend
             values={values}
             average={average}
-            result={result}
             onClose={setShowModal}
           />
         </div>

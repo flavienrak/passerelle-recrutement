@@ -11,12 +11,19 @@ import {
   extractTextFromPDF,
   generateUniqueId,
 } from '../lib/function';
-import { updatePersistReducer } from '../redux/slices/persist.slice';
+import {
+  resetPersistReducer,
+  updatePersistReducer,
+} from '../redux/slices/persist.slice';
 import { useDispatch } from 'react-redux';
+import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, storage } from '../lib/firebase';
 import { CvInterface } from '../interfaces/Cv.interface';
-import { updateUserReducer } from '../redux/slices/user.slice';
+import {
+  resetUserReducer,
+  updateUserReducer,
+} from '../redux/slices/user.slice';
 
 export default function CvUploadPage() {
   const dispatch = useDispatch();
@@ -62,16 +69,35 @@ export default function CvUploadPage() {
     setIsSubmitting(true);
 
     if (cv && email) {
-      dispatch(updatePersistReducer({ email }));
+      const userId = generateUniqueId();
+      // const cvRef = ref(
+      //   storage,
+      //   `upload/${userId}.${cv.name.split('.').pop()}`
+      // );
+      // await uploadBytes(cvRef, cv);
+      // const cvUrl = await getDownloadURL(cvRef);
+
       const cvContent = await handleFile(cv);
 
-      const userId = generateUniqueId();
+      dispatch(resetUserReducer());
+      dispatch(resetPersistReducer());
+      dispatch(updatePersistReducer({ userId }));
+
+      await setDoc(
+        doc(db, 'users', userId),
+        {
+          id: userId,
+          email,
+          // cvUrl,
+          cvContent: cvContent.trim(),
+        },
+        { merge: true }
+      );
+
       await setDoc(
         doc(db, 'cvs', userId),
         {
           id: userId,
-          email,
-          cvContent: cvContent.trim(),
           acceptConditions: true,
           completedSteps: {
             cvUploaded: true,

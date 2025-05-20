@@ -32,6 +32,7 @@ export default function ConditionsPage() {
                             key={`cgu-item-${index}`}
                             href={val.act}
                             target="_blank"
+                            rel="noopener noreferrer"
                             className="text-cyan-300"
                           >
                             {val.act}
@@ -67,6 +68,7 @@ export default function ConditionsPage() {
                             key={`cgv-item-${index}`}
                             href={val.act}
                             target="_blank"
+                            rel="noopener noreferrer"
                             className="text-cyan-300"
                           >
                             {val.act}
@@ -110,6 +112,7 @@ export default function ConditionsPage() {
                             key={`politique-item-${index}`}
                             href={val.act}
                             target="_blank"
+                            rel="noopener noreferrer"
                             className="text-cyan-300"
                           >
                             {val.act}

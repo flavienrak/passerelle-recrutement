@@ -362,7 +362,7 @@ export default function InterviewQuestionsPage() {
   return (
     <Layout currentStep={2}>
       <div className="flex flex-col items-center justify-center flex-1 px-4 h-[calc(100vh-theme(spacing.16))]">
-        <div className="w-full max-w-2xl">
+        <div className="w-full max-w-3xl">
           <div className="text-center mb-6">
             <h1 className="text-4xl font-bold mb-3">Votre expérience</h1>
             <p className="text-gray-300">
@@ -370,7 +370,7 @@ export default function InterviewQuestionsPage() {
             </p>
           </div>
 
-          <Card className="bg-gradient-to-br from-[#1F2437] via-[#161A2A] to-[#0A0E17] backdrop-blur-lg border-[#FF6B00]/10 shadow-[0_0_30px_rgba(255,107,0,0.1)] h-[550px] flex flex-col">
+          <Card className="flex flex-col bg-gradient-to-br from-[#1F2437] via-[#161A2A] to-[#0A0E17] backdrop-blur-lg border-[#FF6B00]/10 shadow-[0_0_30px_rgba(255,107,0,0.1)]">
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
@@ -389,28 +389,29 @@ export default function InterviewQuestionsPage() {
                 </div>
               </div>
 
-              <h2 className="text-2xl font-medium text-white mb-3 leading-relaxed">
-                {interviewQuestions[currentQuestion].text}
-              </h2>
-              <p className="text-[#FF6B00] font-medium text-base bg-[#FF6B00]/5 rounded-lg px-4 py-2 inline-block">
-                {interviewQuestions[currentQuestion].helper}
-              </p>
+              <div className="flex flex-col gap-2">
+                <h2 className="text-2xl font-medium text-white mb-3 leading-relaxed">
+                  {interviewQuestions[currentQuestion].text}
+                </h2>
+                <p className="text-[#FF6B00] font-medium text-base bg-[#FF6B00]/5 rounded-lg px-4 py-2 inline-block">
+                  {interviewQuestions[currentQuestion].helper}
+                </p>
 
-              <form
-                onSubmit={(event) => handleSubmit({ event })}
-                className="flex-1 flex flex-col mt-6"
-              >
-                <textarea
-                  value={answer}
-                  onChange={(event) => setAnswer(event.target.value)}
-                  className={`flex-1 min-h-[120px] bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 transition-all duration-300 resize-none ${
-                    isRecording ? 'opacity-50' : ''
-                  } hover:bg-[#0A0E17]/90`}
-                  placeholder="Votre réponse..."
-                  disabled={isRecording}
-                />
-                <div className="mt-4 relative h-[104px]">
-                  <div className="absolute inset-0 space-y-3">
+                <form
+                  onSubmit={(event) => handleSubmit({ event })}
+                  className="flex-1 flex flex-col gap-4"
+                >
+                  <textarea
+                    value={answer}
+                    onChange={(event) => setAnswer(event.target.value)}
+                    className={`flex-1 min-h-40 bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 transition-all duration-300 resize-none ${
+                      isRecording ? 'opacity-50' : ''
+                    } hover:bg-[#0A0E17]/90`}
+                    placeholder="Votre réponse..."
+                    disabled={isRecording}
+                  />
+
+                  <div className="relative flex flex-col gap-2.5">
                     <button
                       onClick={(event) => {
                         event.preventDefault();
@@ -449,12 +450,14 @@ export default function InterviewQuestionsPage() {
                               fill="currentColor"
                             />
                           </svg>
-                          <span>Traitement en cours...</span>
+                          <span>
+                            Enregistrer et passer à la question suivante
+                          </span>
                         </p>
                       ) : (
                         <>
                           <Mic className="w-6 h-6" />
-                          <span>Enregistrer ma réponse</span>
+                          <span>Cliquer ici pour répondre à l’oral</span>
                         </>
                       )}
                     </button>
@@ -486,11 +489,23 @@ export default function InterviewQuestionsPage() {
                           />
                         </svg>
                       )}
-                      <span>Question suivante</span>
+                      <span>
+                        Valider ma réponse à l’écrit et passer à la question
+                        suivante
+                      </span>
                     </button>
                   </div>
+                </form>
+
+                <div className="pt-2.5">
+                  <p className="text-sm text-gray-200">
+                    Vous pouvez répondre à l’oral ou à l’écrit. Nous ne gardons
+                    pas les audios et les écrits brut, vos réponses sont
+                    traitées par notre technologie avant d’être synthétisées et
+                    transmises à l’entreprise.
+                  </p>
                 </div>
-              </form>
+              </div>
             </div>
           </Card>
         </div>

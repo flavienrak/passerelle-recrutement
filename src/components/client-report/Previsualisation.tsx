@@ -216,11 +216,7 @@ export default function Previsualisation({
                   setSelectedFamily={setSelectedFamily}
                 />
 
-                <SyntheseGlobale
-                  values={values}
-                  average={average}
-                  result={cognitifResult}
-                />
+                <SyntheseGlobale values={values} average={average} />
               </div>
             </div>
           </div>

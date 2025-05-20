@@ -3,25 +3,14 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { MatriceValueInterface } from '../../interfaces/client-report/MatriceValue.interface';
 import { percentage } from '../../lib/function';
-
-const colors = {
-  orange: '#F97316',
-  blue: '#3B82F6',
-  purple: '#8B5CF6',
-  green: '#10B981',
-  pink: '#EC4899',
-  yellow: '#FBBF24',
-  teal: '#14B8A6',
-};
+import { colors } from '../../lib/colors';
 
 export default function SkillsLegend({
   average,
-  result,
   values,
   onClose,
 }: {
   average: number;
-  result: number[];
   values: MatriceValueInterface;
   onClose: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
@@ -78,44 +67,10 @@ export default function SkillsLegend({
       relatedSkills: [],
     },
   ];
-
-  const metricsData = [
-    {
-      id: 'risque',
-      title: 'Risque terrain',
-      value: result[0],
-      color: colors.blue,
-      description:
-        "Le candidat montre une bonne capacité à identifier les priorités opérationnelles dans un environnement structuré. Il peut gagner en impact lorsqu'il faut arbitrer rapidement entre des choix ambigus ou mal définis.",
-      contextDetails:
-        "Sur le terrain, c'est un profil sécurisant qui limite les erreurs, avec un bon potentiel d'adaptation à des enjeux plus flous s'il est bien cadré.",
-    },
-    {
-      id: 'implication',
-      title: 'Implication émotionnelle',
-      value: result[1],
-      color: colors.purple,
-      description:
-        "Le candidat investit ses ressources avec discernement, en s'appuyant sur des repères stables. Son implication est forte dans les environnements qu'il connaît. Il peut cependant temporiser face à des zones grises ou mal cadrées.",
-      contextDetails:
-        'Sur le terrain, cela donne un profil fiable, prudent, qui peut monter en puissance dans des contextes de plus en plus complexes.',
-    },
-    {
-      id: 'decision',
-      title: 'Force de décision',
-      value: result[2],
-      color: colors.green,
-      description:
-        "Le candidat dispose d'une bonne capacité d'analyse avec une attention fine aux nuances, ce qui lui permet d'éviter les décisions hâtives. Il montre un potentiel solide de renforcement si on l'accompagne vers plus de rapidité d'exécution.",
-      contextDetails:
-        "Sur le terrain, il s'agit d'un profil réfléchi, utile dans les décisions impliquant plusieurs parties ou des zones de tension.",
-    },
-  ];
-
   return (
-    <div className="h-full p-4 overflow-y-auto flex flex-col gap-6">
+    <div className="h-full p-4 overflow-y-auto flex flex-col gap-8">
       <div className="relative flex items-center">
-        <h2 className="flex-1 text-center text-4xl font-bold text-white mb-2">
+        <h2 className="flex-1 text-center text-4xl font-bold text-white">
           Repères cognitifs
         </h2>
         <i
@@ -124,6 +79,35 @@ export default function SkillsLegend({
         >
           <X />
         </i>
+      </div>
+      <div className="flex flex-col gap-2">
+        <p>
+          Ce test évalue les dynamiques internes qui influencent la performance
+          professionnelle. Il repose sur trois grandes familles cognitives :
+        </p>
+        <ul className="list-disc list-inside">
+          <li>
+            <strong>Pilotage Stratégique :</strong> capacité à structurer
+            l’action, prioriser, viser un résultat.
+          </li>
+          <li>
+            <strong>Résilience Décisionnelle :</strong> manière de réagir sous
+            pression ou en contexte incertain.
+          </li>
+          <li>
+            <strong>Lecture du Potentiel Humain :</strong> aptitude à comprendre
+            les autres et à s’y ajuster.
+          </li>
+        </ul>
+        <p>
+          Chaque famille regroupe plusieurs matrices cognitives, analysées via
+          des questions de mises en situation. Les résultats révèlent des
+          tendances dans la façon de gérer des situations, ces tendances ne sont
+          pas figées. En complément, le Niveau d’imprégnation métier mesure
+          l’intensité avec laquelle le candidat s’engage émotionnellement dans
+          sa mission. C’est un indicateur de motivation, de présence et de
+          projection à long terme.
+        </p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {skills.map((skill) => (
@@ -161,44 +145,6 @@ export default function SkillsLegend({
                 <p className="text-gray-300">{skill.contextDetails}</p>
               </div>
             )}
-          </div>
-        ))}
-
-        {metricsData.map((metric) => (
-          <div
-            key={metric.id}
-            className="bg-gray-800 rounded-lg p-6 relative overflow-hidden"
-          >
-            {/* Background gradient effect */}
-            <div
-              className="absolute inset-0 opacity-10"
-              style={{
-                background: `linear-gradient(135deg, ${metric.color}22 0%, transparent 100%)`,
-              }}
-            />
-
-            <div className="relative z-10">
-              <div className="flex items-center gap-4 mb-4">
-                {/* Circular progress indicator */}
-                <div
-                  className="min-w-16 min-h-16 rounded-full border-4 flex items-center justify-center relative"
-                  style={{ borderColor: metric.color }}
-                >
-                  <span
-                    className="text-xl font-bold"
-                    style={{ color: metric.color }}
-                  >
-                    {metric.value}%
-                  </span>
-                </div>
-
-                <h3 className="text-xl font-bold text-white">{metric.title}</h3>
-              </div>
-
-              <p className="text-gray-300 mb-3">{metric.description}</p>
-
-              <p className="text-gray-400 text-sm">{metric.contextDetails}</p>
-            </div>
           </div>
         ))}
       </div>

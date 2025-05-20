@@ -39,8 +39,11 @@ const userSlice = createSlice({
         state.cv = data.cv;
       }
     },
+    resetUserReducer: () => {
+      return initialState;
+    },
   },
 });
 
-export const { updateUserReducer } = userSlice.actions;
+export const { updateUserReducer, resetUserReducer } = userSlice.actions;
 export default userSlice.reducer;

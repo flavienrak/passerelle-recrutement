@@ -471,24 +471,25 @@ export default function HomePage() {
   };
 
   async function getCandidatesFromFirestore() {
-    const querySnapshot = await getDocs(collection(db, 'cvs'));
-    const fetchedCandidates = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
+    const usersSnap = await getDocs(collection(db, 'users'));
+
+    const fetchedCandidates: Candidate[] = usersSnap.docs.map((item) => {
+      const data = item.data();
 
       return {
-        userId: data.id || '',
         topicOwner: '',
-        candidateName: data.fileName || '',
-        email: data.email || '',
+        candidateName: '',
         targetPosition: '',
         location: '',
         targetCompany: '',
+        comments: '',
+        dateAdded: '',
+        userId: data.id,
+        email: data.email,
         status: 'Waiting candidate',
-        comments: data.parsedData?.centres_interet?.[0] || '',
-        dateAdded: data.uploadedAt || '',
       };
     });
-    setCandidateData(fetchedCandidates as Candidate[]);
+    setCandidateData(fetchedCandidates);
   }
 
   React.useEffect(() => {

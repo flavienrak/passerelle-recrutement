@@ -1,9 +1,11 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-const initialState: { timer: number; currentQuestion: number } = {
-  timer: 30,
-  currentQuestion: 0,
-};
+const initialState: { timer: number; currentQuestion: number; userId: string } =
+  {
+    timer: 30,
+    currentQuestion: 0,
+    userId: '',
+  };
 
 const persistSlice = createSlice({
   name: 'persistInfos',
@@ -13,9 +15,11 @@ const persistSlice = createSlice({
       const {
         timer,
         currentQuestion,
+        userId,
       }: {
         timer?: number;
         currentQuestion?: number;
+        userId?: string;
       } = action.payload;
 
       if (typeof timer === 'number') {
@@ -25,9 +29,17 @@ const persistSlice = createSlice({
       if (typeof currentQuestion === 'number') {
         state.currentQuestion = currentQuestion;
       }
+
+      if (userId) {
+        state.userId = userId;
+      }
+    },
+    resetPersistReducer: () => {
+      return initialState;
     },
   },
 });
 
-export const { updatePersistReducer } = persistSlice.actions;
+export const { updatePersistReducer, resetPersistReducer } =
+  persistSlice.actions;
 export default persistSlice.reducer;

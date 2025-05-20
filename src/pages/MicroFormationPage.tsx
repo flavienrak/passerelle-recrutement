@@ -182,15 +182,15 @@ export default function MicroFormationPage() {
                   diversité cognitive !
                 </p>
 
-                <Button
-                  onClick={() => {
-                    window.open('https://example.com/opportunities', '_blank');
-                  }}
-                  className="flex items-center"
+                <a
+                  href={'#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-max flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 bg-[#FF6B00] hover:bg-[#FF8124] text-white text-base py-2.5 px-5 focus:outline-none select-none"
                 >
                   Découvrir nos opportunités
-                  <ExternalLink size={16} className="ml-2" />
-                </Button>
+                  <ExternalLink size={16} />
+                </a>
               </div>
             </div>
           </Card>

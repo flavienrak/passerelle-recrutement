@@ -147,6 +147,7 @@ export default function HomePage() {
   const handleDeleteRow = async (userId: string) => {
     if (userId) {
       setDeleteLoading(userId);
+      await deleteDoc(doc(db, 'users', userId));
       await deleteDoc(doc(db, 'cvs', userId));
       await deleteDoc(doc(db, 'interviews', userId));
       await deleteDoc(doc(db, 'tests', userId));
@@ -395,9 +396,7 @@ export default function HomePage() {
                       disabled={deleteLoading === candidate.userId}
                       onClick={() => handleDeleteRow(candidate.userId)}
                       className={`bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 border-[#FF6B00]/30 text-[#FF6B00] ${
-                        deleteLoading === candidate.userId
-                          ? 'pointer-events-none'
-                          : ''
+                        deleteLoading ? 'pointer-events-none' : ''
                       }`}
                     >
                       {deleteLoading === candidate.userId ? (

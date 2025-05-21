@@ -1,15 +1,9 @@
 import React from 'react';
 import Button from '../components/Button';
+import Skeleton from '../components/Skeleton';
 
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  Brain,
-  Target,
-  Shield,
-  Users,
-  ArrowRight,
-  Download,
-} from 'lucide-react';
+import { Brain, Target, Shield, Users, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
@@ -21,11 +15,11 @@ import {
   getValueForScore,
   percentage,
 } from '../lib/function';
-import { chat } from '../lib/openai';
 import { getDoc, setDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { updateUserReducer } from '../redux/slices/user.slice';
 import { highWeakSynthese } from '../lib/prompts';
+import { gpt4 } from '../lib/openai';
 
 export default function ResultsPage() {
   const { tests, cv } = useSelector((state: RootState) => state.user);
@@ -34,6 +28,7 @@ export default function ResultsPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  const [isLoading, setIsLoading] = React.useState(false);
   const [loadingSendReport, setLoadinSendReport] = React.useState(false);
   const [globalScore, setGlobalScore] = React.useState(0);
   const [values, setValues] = React.useState<MatriceValueInterface>({
@@ -99,51 +94,13 @@ export default function ResultsPage() {
 
           // 3️⃣ On met tout à jour **une seule fois**
           setValues(finalValues);
-
-          if (!tests.highContent || !tests.weakContent) {
-            const messageContent = `
-              Sens de l'efficacité : ${percentage(finalValues.m1)}%\n
-              Analyse des situations : ${percentage(finalValues.m2)}%\n
-              Vision des problématiques : ${percentage(finalValues.m3)}%\n
-              Force créative : ${percentage(finalValues.m4)}%\n
-              Indépendance relationnelle : ${percentage(finalValues.m5)}%\n
-              Remise en question constructive : ${percentage(finalValues.m6)}%\n
-              Agilité à piloter en s'adaptant : ${percentage(finalValues.m7)}%
-            `;
-
-            const openaiResponse = await chat([
-              { role: 'system', content: highWeakSynthese.trim() },
-              { role: 'user', content: messageContent.trim() },
-            ]);
-
-            if (openaiResponse.content) {
-              const jsonData: { highContent: string; weakContent: string } =
-                extractJson(openaiResponse.content);
-
-              await setDoc(
-                doc(db, 'tests', userId),
-                {
-                  highContent: jsonData.highContent,
-                  weakContent: jsonData.weakContent,
-                },
-                { merge: true }
-              );
-
-              const testsDocSnap = await getDoc(doc(db, 'tests', userId));
-
-              if (testsDocSnap.exists()) {
-                const data = testsDocSnap.data();
-                dispatch(updateUserReducer({ tests: data }));
-              }
-            }
-          }
         })();
       }
     }
   }, [userId, cv, tests]);
 
   React.useEffect(() => {
-    if (values) {
+    if (values && !Object.values(values).every((item) => item === 0)) {
       const average = parseFloat(
         (
           Object.values(values).reduce((sum, val) => sum + val, 0) /
@@ -160,6 +117,49 @@ export default function ResultsPage() {
 
       const adjustedAverage = parseFloat((average + adjustment).toFixed(2));
       setGlobalScore(adjustedAverage);
+
+      (async () => {
+        if (!tests.highContent || !tests.weakContent) {
+          setIsLoading(true);
+          const messageContent = `
+            Sens de l'efficacité : ${percentage(values.m1)}%\n
+            Analyse des situations : ${percentage(values.m2)}%\n
+            Vision des problématiques : ${percentage(values.m3)}%\n
+            Force créative : ${percentage(values.m4)}%\n
+            Indépendance relationnelle : ${percentage(values.m5)}%\n
+            Remise en question constructive : ${percentage(values.m6)}%\n
+            Agilité à piloter en s'adaptant : ${percentage(values.m7)}%
+          `;
+
+          const openaiResponse = await gpt4([
+            { role: 'system', content: highWeakSynthese.trim() },
+            { role: 'user', content: messageContent.trim() },
+          ]);
+
+          if (openaiResponse.content) {
+            const jsonData: { highContent: string; weakContent: string } =
+              extractJson(openaiResponse.content);
+
+            await setDoc(
+              doc(db, 'tests', userId),
+              {
+                highContent: jsonData.highContent,
+                weakContent: jsonData.weakContent,
+              },
+              { merge: true }
+            );
+
+            const testsDocSnap = await getDoc(doc(db, 'tests', userId));
+
+            if (testsDocSnap.exists()) {
+              const data = testsDocSnap.data();
+              dispatch(updateUserReducer({ tests: data }));
+            }
+          }
+
+          setIsLoading(false);
+        }
+      })();
     }
   }, [values]);
 
@@ -240,26 +240,42 @@ export default function ResultsPage() {
               <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-1">
                 <Target className="w-5 h-5 text-green-600" />
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="w-full flex flex-col gap-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Force Principale
                 </h3>
-                <p className="text-gray-700 leading-5 whitespace-pre-line">
-                  {tests.highContent}
-                </p>
+                {isLoading ? (
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="w-full h-5 bg-gray-100 rounded-md" />
+                    <Skeleton className="w-5/6 h-5 bg-gray-100 rounded-md" />
+                    <Skeleton className="w-4/6 h-5 bg-gray-100 rounded-md" />
+                  </div>
+                ) : (
+                  <p className="text-gray-700 leading-5 whitespace-pre-line">
+                    {tests.highContent}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-start gap-4">
               <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-1">
                 <ArrowRight className="w-5 h-5 text-amber-600" />
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="w-full flex flex-col gap-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Axe d'Amélioration
                 </h3>
-                <p className="text-gray-700 leading-5 whitespace-pre-line">
-                  {tests.weakContent}
-                </p>
+                {isLoading ? (
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="w-full h-5 bg-gray-100 rounded-md" />
+                    <Skeleton className="w-5/6 h-5 bg-gray-100 rounded-md" />
+                    <Skeleton className="w-4/6 h-5 bg-gray-100 rounded-md" />
+                  </div>
+                ) : (
+                  <p className="text-gray-700 leading-5 whitespace-pre-line">
+                    {tests.weakContent}
+                  </p>
+                )}
               </div>
             </div>
           </div>

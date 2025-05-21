@@ -11,7 +11,6 @@ import { db } from '../lib/firebase';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { extractJson } from '../lib/function';
-import { chat } from '../lib/openai';
 import {
   competenceAnonym,
   cvProcessing,
@@ -23,6 +22,7 @@ import {
 import { interviewQuestions } from '../lib/constants';
 import { CvInterface } from '../interfaces/Cv.interface';
 import { updateUserReducer } from '../redux/slices/user.slice';
+import { gpt3 } from '../lib/openai';
 
 function sanitizeOrder<T extends { content: string; order: any }[]>(
   array: T
@@ -59,8 +59,8 @@ export default function InterviewQuestionsPage() {
         navigate(`/${userId}/test-landing`);
       } else {
         setCurrentQuestion(
-          interviews.length <= interviewQuestions.length
-            ? interviews.length
+          interviews.answers.length <= interviewQuestions.length
+            ? interviews.answers.length
             : interviewQuestions.length
         );
       }
@@ -72,7 +72,7 @@ export default function InterviewQuestionsPage() {
       ) {
         (async () => {
           // CV PROCESSING
-          const openaiResponse = await chat([
+          const openaiResponse = await gpt3([
             { role: 'system', content: cvProcessing.trim() },
             {
               role: 'user',
@@ -135,7 +135,7 @@ export default function InterviewQuestionsPage() {
 
             // DIPLOMES ANONYME
             if (itemData.diplomes.length > 0) {
-              const openaiItemResponse = await chat([
+              const openaiItemResponse = await gpt3([
                 { role: 'system', content: diplomeAnonym.trim() },
                 { role: 'user', content: messageContent.trim() },
               ]);
@@ -155,7 +155,7 @@ export default function InterviewQuestionsPage() {
 
             // FORMATION ANONYME
             if (itemData.formations.length > 0) {
-              const openaiItemResponse = await chat([
+              const openaiItemResponse = await gpt3([
                 { role: 'system', content: formationAnonym.trim() },
                 { role: 'user', content: messageContent.trim() },
               ]);
@@ -175,7 +175,7 @@ export default function InterviewQuestionsPage() {
 
             // COMPETENCES ANONYME
             if (itemData.competences.length > 0) {
-              const openaiItemResponse = await chat([
+              const openaiItemResponse = await gpt3([
                 { role: 'system', content: competenceAnonym.trim() },
                 { role: 'user', content: messageContent.trim() },
               ]);
@@ -195,7 +195,7 @@ export default function InterviewQuestionsPage() {
 
             // EXPERIENCES ANONYME
             if (itemData.experiences.length > 0) {
-              const openaiExperienceResponse = await chat([
+              const openaiExperienceResponse = await gpt3([
                 { role: 'system', content: experienceAnonym.trim() },
                 { role: 'user', content: messageContent.trim() },
               ]);
@@ -225,7 +225,7 @@ export default function InterviewQuestionsPage() {
         })();
       }
     }
-  }, [userId, cv, interviews]);
+  }, [userId, cv, interviews.answers]);
 
   const startRecording = async () => {
     try {
@@ -303,7 +303,7 @@ export default function InterviewQuestionsPage() {
         setIsLoadingResponse(true);
       }
 
-      const openaiResponse = await chat([
+      const openaiResponse = await gpt3([
         { role: 'system', content: responseAnonym.trim() },
         {
           role: 'user',
@@ -404,7 +404,7 @@ export default function InterviewQuestionsPage() {
                   <textarea
                     value={answer}
                     onChange={(event) => setAnswer(event.target.value)}
-                    className={`flex-1 min-h-40 bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 transition-all duration-300 resize-none ${
+                    className={`flex-1 min-h-40 bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 outline-none focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 transition-all duration-300 resize-none ${
                       isRecording ? 'opacity-50' : ''
                     } hover:bg-[#0A0E17]/90`}
                     placeholder="Votre réponse..."

@@ -25,12 +25,12 @@ import { extractJson, percentage } from '../../lib/function';
 import { useParams } from 'react-router-dom';
 import { RootState } from '../../redux/store';
 import { useDispatch, useSelector } from 'react-redux';
-import { chat } from '../../lib/openai';
 import { syntheseGlobal } from '../../lib/prompts';
 import { db } from '../../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { updateUserReducer } from '../../redux/slices/user.slice';
 import { colors } from '../../lib/colors';
+import { gpt3 } from '../../lib/openai';
 
 ChartJS.register(
   RadialLinearScale,
@@ -240,7 +240,7 @@ export default function SyntheseGlobale({
     if (userId) {
       (async () => {
         if (!tests.synthese) {
-          const openaiResponse = await chat([
+          const openaiResponse = await gpt3([
             { role: 'system', content: syntheseGlobal.trim() },
             { role: 'user', content: messageContent.trim() },
           ]);

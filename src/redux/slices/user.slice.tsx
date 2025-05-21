@@ -1,14 +1,14 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { CvInterface } from '../../interfaces/Cv.interface';
-import { InterviewInterface } from '../../interfaces/Interview.interface';
+import { AnswerInterviewInterface } from '../../interfaces/AnswerInterview.interface';
 import { TestInterviewInterface } from '../../interfaces/TestInterview.interface';
 
 const initialState: {
   tests: TestInterviewInterface;
-  interviews: InterviewInterface[];
+  interviews: { answers: AnswerInterviewInterface[] };
   cv: CvInterface | null;
 } = {
-  interviews: [],
+  interviews: { answers: [] },
   tests: {
     answers: [],
     highContent: '',
@@ -25,7 +25,7 @@ const userSlice = createSlice({
   reducers: {
     updateUserReducer: (state, action) => {
       const data: {
-        interviews?: InterviewInterface[];
+        interviews?: { answers: AnswerInterviewInterface[] };
         tests?: TestInterviewInterface;
         cv?: CvInterface;
       } = action.payload;

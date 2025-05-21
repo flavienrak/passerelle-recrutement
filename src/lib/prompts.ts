@@ -3,17 +3,22 @@ const cvProcessing = `
   
   Mission :
   À partir du contenu du CV du candidat :
-  - Extraire et structurer les informations pertinentes.
+  - Extraire les informations du CV.
   - Rédige une **phrase d’accroche professionnelle** sobre et crédible, centrée sur l’expertise et la cohérence du parcours.
   
   Phrase d'accroche :
   - Montrer une progression logique.
   - Positionner clairement le rôle cible.
   - Mettre en valeur les savoir-faire clés.
-  - Commence **impérativement** par le **nombre total d’années d’expérience**
+  - Commence **impérativement** par le **nombre total d’années d’expérience sans le mois**
   - 1 à 2 phrases, ton neutre et structuré.
   - Maximum 200 caractères.
   - Pas d'effet de style, pas d’exagération.
+  - Reformuler les noms des entreprises. 
+  - Reformuler les dates en nombre d'années et de mois. 
+
+  Reformulation noms d'entreprises :
+  STARTUP | PME | ETI | GRAND_GROUPE | INSTITUTION_PUBLIQUE | ONG | ORG_ETUDIANTE | ASSO_BENEVOLE | PROJET_UNIVERSITAIRE | INDEPENDANT
 
   Informations supplémentaires :
   - Diplomes :  
@@ -23,13 +28,11 @@ const cvProcessing = `
     Inclure les contenus suivis en dehors du parcours académique classique : MOOC, certifications, formations pro, bootcamps…
 
   Contraintes  
+  - Eviter la perte de données.
   - **Tous les champs doivent être présents**, même s’ils sont vides.  
   - Chaque champ **content** doit comporter une **formulation claire et aérée**, avec **retours à la ligne pertinents**.  
   - Le champ **order** indique l’ordre chronologique décroissante (le plus récent en premier).
-  - Extraire et structurer les informations du CV en **séparant clairement** les diplômes académiques des formations professionnelles. 
-  - Anonymiser l'ensemble contenu.
-  - Ne pas mentionner les noms des entreprises. 
-  - Ne pas mentionner les dates. 
+  - **Séparer clairement** les diplômes académiques des formations professionnelles. 
   - Respecter les retours à la ligne demandé.
   - Ne jamais sortir du format demandé.
   
@@ -158,7 +161,7 @@ const experienceAnonym = `
   - Doit refléter un **rôle hybride ou opération stratégique**, pas un intitulé de mission
   - Adapté à un profil **junior ou alternant**
   - Respecte le format :
-  "Activités : [Rôle ou fonction hybride] – [secteur ou enjeu principal] ([canaux clés ou méthode])"
+  "[Rôle ou fonction hybride] – [secteur ou enjeu principal] ([canaux clés ou méthode])"
 
   2. Durée :
   À partir des dates de début/fin, calcule la durée réelle +2 mois.
@@ -259,10 +262,14 @@ const highWeakSynthese = `
   Tu es un coach recruteur expert qui analyse les résultats, 
   sur la base des pourcentages de chaque matrices.
 
-  Mission :
-  Donne en 500 caractères,
-  - Les forces principales du profil en 3 bullet point.
-  - Le potentiel d’évolution du profil en 3 bullet point en insistant sur les aspects positifs.
+  En fonction des résultats du test,
+  - Donne en 1200 caractères les forces principales du profil en 3 bullet point. 
+  Tu dois donner 3 forces invisibles du candidat que tu déduis des résultats du test.
+  - Donne en 1200 caractères le potentiel d’évolution du profil en 3 bullet point en insistant 
+  sur les aspects positifs. Tu dois donner 3 axes améliorables du candidat 
+  que tu déduis des résultats du test. Tu dois donner ces résultats comme 
+  « tendances comportementales » et dire pour chacun la valeur ajoutée quotidienne 
+  qu’elle apporterait au candidat.
 
   Contraintes :
   - Chaque bullet point à la ligne.

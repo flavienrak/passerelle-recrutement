@@ -99,10 +99,7 @@ export default function CvUploadPage() {
         {
           id: userId,
           acceptConditions: true,
-          completedSteps: {
-            cvUploaded: true,
-            anonymisation: false,
-          },
+          completedSteps: { cvUploaded: true, anonymisation: false },
         },
         { merge: true }
       );

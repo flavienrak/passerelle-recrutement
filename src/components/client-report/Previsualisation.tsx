@@ -1,4 +1,6 @@
 import React from 'react';
+import classNames from 'classnames';
+import Card from '../Card';
 import Button from '../Button';
 import EmotionalLevel from '../../components/client-report/EmotionalLevel';
 import InterviewSynthese from '../../components/client-report/InterviewSynthese';
@@ -6,11 +8,36 @@ import CvAnonym from '../../components/client-report/CvAnonym';
 import ResultatCognitif from '../../components/client-report/ResultatCognitif';
 import SyntheseGlobale from '../../components/client-report/SyntheseGlobale';
 
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { MatriceValueInterface } from '../../interfaces/client-report/MatriceValue.interface';
 import { initialMatrice } from '../../lib/constants';
+import { X } from 'lucide-react';
+import { cvLabels } from '../../lib/cv-anonym/cvLabels';
+import { EditCvAnonymInterface } from '../../interfaces/client-report/EditCvAnonym.interface';
+import { EditSyntheseAnonymInterface } from '../../interfaces/client-report/EditSyntheseAnonym.interface';
+import { syntheseLabels } from '../../lib/cv-anonym/syntheseLabels';
+import { db } from '../../lib/firebase';
+import { CvInterface } from '../../interfaces/Cv.interface';
+import { updateUserReducer } from '../../redux/slices/user.slice';
+import { AnswerInterviewInterface } from '../../interfaces/AnswerInterview.interface';
+
+const initialEditCvAnonym = {
+  label: '',
+  title: '',
+  initialTitle: '',
+  date: '',
+  initialDate: '',
+  value: '',
+  initialValue: '',
+};
+
+const initialEditSyntheseAnonym = {
+  value: '',
+  initialValue: '',
+};
 
 export default function Previsualisation({
   showHeader = true,
@@ -22,6 +49,16 @@ export default function Previsualisation({
   );
   const { userId } = useParams();
 
+  const dispatch = useDispatch();
+  const persistInfos = useSelector((state: RootState) => state.persistInfos);
+
+  const [editable, setEditable] = React.useState(false);
+  const [editCvAnonym, setEditCvAnonym] =
+    React.useState<EditCvAnonymInterface>(initialEditCvAnonym);
+  const [editSyntheseAnonym, setEditSyntheseAnonym] =
+    React.useState<EditSyntheseAnonymInterface>(initialEditSyntheseAnonym);
+  const [editCvLoading, setEditCvLoading] = React.useState(false);
+  const [editSyntheseLoading, setEditSyntheseLoading] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [selectedFamily, setSelectedFamily] = React.useState<string | null>(
     null
@@ -37,6 +74,12 @@ export default function Previsualisation({
     m6: 0,
     m7: 0,
   });
+
+  React.useEffect(() => {
+    if (persistInfos.userId && userId) {
+      setEditable(persistInfos.userId === userId);
+    }
+  }, [persistInfos.userId, userId]);
 
   React.useEffect(() => {
     if (tests.answers && tests.answers.length > 0) {
@@ -137,6 +180,161 @@ export default function Previsualisation({
       });
   };
 
+  const handleEditCvAnonym = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    if (cv) {
+      let updatedCv: CvInterface | null = null;
+
+      if (
+        editCvAnonym.label === 'presentation' &&
+        cv.presentation !== editCvAnonym.value.trim()
+      ) {
+        updatedCv = { ...cv, presentation: editCvAnonym.value.trim() };
+      } else if (editCvAnonym.label === 'diplomes' && cv.diplomes_anonym) {
+        const actualDiplome = cv.diplomes_anonym.find(
+          (item, index) => index === editCvAnonym.index
+        );
+
+        if (actualDiplome && actualDiplome !== editCvAnonym.value.trim()) {
+          updatedCv = {
+            ...cv,
+            diplomes_anonym: cv.diplomes_anonym.map((item, index) =>
+              index === editCvAnonym.index ? editCvAnonym.value.trim() : item
+            ),
+          };
+        }
+      } else if (editCvAnonym.label === 'formations' && cv.formations_anonym) {
+        const actualFormation = cv.formations_anonym.find(
+          (item, index) => index === editCvAnonym.index
+        );
+
+        if (actualFormation && actualFormation !== editCvAnonym.value.trim()) {
+          updatedCv = {
+            ...cv,
+            formations_anonym: cv.formations_anonym.map((item, index) =>
+              index === editCvAnonym.index ? editCvAnonym.value.trim() : item
+            ),
+          };
+        }
+      } else if (
+        editCvAnonym.label === 'competence' &&
+        cv.competence_anonym &&
+        cv.competence_anonym !== editCvAnonym.value.trim()
+      ) {
+        updatedCv = { ...cv, competence_anonym: editCvAnonym.value.trim() };
+      } else if (
+        editCvAnonym.label === 'experiences' &&
+        cv.experiences_anonym
+      ) {
+        const actualExperience = cv.experiences_anonym.find(
+          (item, index) => index === editCvAnonym.index
+        );
+
+        if (
+          actualExperience &&
+          editCvAnonym.title &&
+          editCvAnonym.date &&
+          editCvAnonym.company &&
+          editCvAnonym.value &&
+          ((editCvAnonym.title.trim().length > 0 &&
+            actualExperience.title !== editCvAnonym.title?.trim()) ||
+            (editCvAnonym.date.trim().length > 0 &&
+              actualExperience.date !== editCvAnonym.date?.trim()) ||
+            (editCvAnonym.company.trim().length > 0 &&
+              actualExperience.company !== editCvAnonym.company?.trim()) ||
+            (editCvAnonym.value.trim().length > 0 &&
+              actualExperience?.description !== editCvAnonym.value.trim()))
+        ) {
+          updatedCv = {
+            ...cv,
+            experiences_anonym: cv.experiences_anonym.map((item, index) =>
+              index === editCvAnonym.index &&
+              editCvAnonym.title &&
+              editCvAnonym.date &&
+              editCvAnonym.company &&
+              editCvAnonym.value
+                ? {
+                    title: editCvAnonym.title.trim(),
+                    date: editCvAnonym.date.trim(),
+                    company: editCvAnonym.company.trim(),
+                    description: editCvAnonym.value.trim(),
+                  }
+                : item
+            ),
+          };
+        }
+      }
+
+      if (updatedCv) {
+        setEditCvLoading(true);
+        await setDoc(doc(db, 'cvs', userId), { ...updatedCv }, { merge: true });
+
+        const cvDocSnap = await getDoc(doc(db, 'cvs', userId));
+        if (cvDocSnap.exists()) {
+          const data: CvInterface = cvDocSnap.data();
+          dispatch(updateUserReducer({ cv: data }));
+        }
+
+        setEditCvLoading(false);
+      }
+      setEditCvAnonym(initialEditCvAnonym);
+    }
+  };
+
+  const handleEditSyntheseAnonym = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    if (interviews) {
+      let updatedInterviews: AnswerInterviewInterface[] | null = null;
+
+      const actualResponse = interviews.answers.find(
+        (item) => item.questionNumber === editSyntheseAnonym.questionNumber
+      );
+
+      if (
+        actualResponse &&
+        actualResponse.answer_anonym !== editSyntheseAnonym.value.trim()
+      ) {
+        setEditSyntheseLoading(true);
+
+        updatedInterviews = interviews.answers.map((item) =>
+          item.questionNumber === editSyntheseAnonym.questionNumber
+            ? {
+                answer_anonym: editSyntheseAnonym.value.trim(),
+                questionNumber: item.questionNumber,
+                answer: item.answer,
+                question: item.question,
+              }
+            : item
+        );
+
+        await setDoc(
+          doc(db, 'interviews', userId),
+          { answers: updatedInterviews },
+          { merge: true }
+        );
+
+        const interviewsDocSnap = await getDoc(doc(db, 'interviews', userId));
+
+        if (interviewsDocSnap.exists()) {
+          const data: { answers: AnswerInterviewInterface[] } =
+            interviewsDocSnap.data();
+
+          if (Array.isArray(data.answers)) {
+            dispatch(updateUserReducer({ interviews: data }));
+          }
+        }
+      }
+
+      setEditSyntheseAnonym(initialEditSyntheseAnonym);
+    }
+  };
+
   if (cv && average)
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0A0E17] to-[#1A1E2E] text-white flex flex-col">
@@ -187,7 +385,11 @@ export default function Previsualisation({
               >
                 CV Anonyme
               </h2>
-              <CvAnonym cv={cv} />
+              <CvAnonym
+                cv={cv}
+                editable={editable}
+                setEditCvAnonym={setEditCvAnonym}
+              />
 
               <h2
                 id={'pre-qualification'}
@@ -195,7 +397,13 @@ export default function Previsualisation({
               >
                 Synthèse pré-qualification
               </h2>
-              {interviews && <InterviewSynthese interviews={interviews} />}
+              {interviews && (
+                <InterviewSynthese
+                  interviews={interviews}
+                  editable={editable}
+                  setEditSyntheseAnonym={setEditSyntheseAnonym}
+                />
+              )}
             </div>
 
             <div className="flex flex-col gap-12">
@@ -221,6 +429,238 @@ export default function Previsualisation({
             </div>
           </div>
         </div>
+
+        {editCvAnonym.label && (
+          <div className="fixed top-0 left-0 h-full w-full flex justify-center items-center p-4 rounded-xl bg-black/70 backdrop-blur-sm">
+            <div className="h-full w-full flex justify-center items-center">
+              <Card className="flex flex-col bg-gradient-to-br from-[#1F2437] via-[#161A2A] to-[#0A0E17] backdrop-blur-lg border-[#FF6B00]/10 shadow-[0_0_30px_rgba(255,107,0,0.1)]">
+                <div className="flex flex-col gap-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-medium text-white leading-relaxed">
+                      {
+                        cvLabels.find((item) => item.key === editCvAnonym.label)
+                          ?.sing
+                      }
+                    </h2>
+                    <i
+                      onClick={() => setEditCvAnonym(initialEditCvAnonym)}
+                      className="h-8 w-8 flex justify-center items-center rounded-full hover:bg-white/10 cursor-pointer"
+                    >
+                      <X />
+                    </i>
+                  </div>
+
+                  <form
+                    onSubmit={handleEditCvAnonym}
+                    className="flex-1 flex flex-col gap-4"
+                  >
+                    <div className="flex flex-col gap-2">
+                      {editCvAnonym.initialTitle && (
+                        <input
+                          id="title"
+                          value={editCvAnonym.title}
+                          onChange={(event) =>
+                            setEditCvAnonym((prev) => ({
+                              ...prev,
+                              title: event.target.value,
+                            }))
+                          }
+                          className={`w-full bg-[#0A0E17]/80 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-400 outline-none focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/50 focus:border-transparent transition-all duration-200 hover:bg-[#0A0E17] ${
+                            editCvLoading ? 'pointer-events-none' : ''
+                          }`}
+                          placeholder={editCvAnonym.initialTitle}
+                        />
+                      )}
+
+                      {editCvAnonym.initialDate && (
+                        <input
+                          id="date"
+                          value={editCvAnonym.date}
+                          onChange={(event) =>
+                            setEditCvAnonym((prev) => ({
+                              ...prev,
+                              date: event.target.value,
+                            }))
+                          }
+                          className={`w-full bg-[#0A0E17]/80 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-400 outline-none focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/50 focus:border-transparent transition-all duration-200 hover:bg-[#0A0E17] ${
+                            editCvLoading ? 'pointer-events-none' : ''
+                          }`}
+                          placeholder={editCvAnonym.initialDate}
+                        />
+                      )}
+
+                      {editCvAnonym.initialCompany && (
+                        <input
+                          id="company"
+                          value={editCvAnonym.company}
+                          onChange={(event) =>
+                            setEditCvAnonym((prev) => ({
+                              ...prev,
+                              company: event.target.value,
+                            }))
+                          }
+                          className={`w-full bg-[#0A0E17]/80 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-400 outline-none focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/50 focus:border-transparent transition-all duration-200 hover:bg-[#0A0E17] ${
+                            editCvLoading ? 'pointer-events-none' : ''
+                          }`}
+                          placeholder={editCvAnonym.initialCompany}
+                        />
+                      )}
+
+                      <textarea
+                        value={editCvAnonym.value}
+                        onChange={(event) =>
+                          setEditCvAnonym((prev) => ({
+                            ...prev,
+                            value: event.target.value,
+                          }))
+                        }
+                        className={`flex-1 min-h-[14rem] min-w-[32rem] bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 outline-none focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 resize-none ${
+                          editCvLoading
+                            ? 'pointer-events-none'
+                            : 'hover:bg-[#0A0E17]/90'
+                        }`}
+                        placeholder={editCvAnonym.initialValue}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={
+                        editCvLoading ||
+                        (editCvAnonym.value === editCvAnonym.initialValue &&
+                          editCvAnonym.title === editCvAnonym.initialTitle &&
+                          editCvAnonym.date === editCvAnonym.initialDate &&
+                          editCvAnonym.company === editCvAnonym.initialCompany)
+                      }
+                      className={classNames(
+                        'w-full rounded-lg flex items-center justify-center gap-2 py-3 text-lg font-medium bg-gradient-to-r from-[#FF6B00] to-[#FF8124] text-white hover:from-[#FF8124] hover:to-[#FF9346] shadow-lg shadow-[#FF6B00]/20',
+                        editCvAnonym.value === editCvAnonym.initialValue &&
+                          editCvAnonym.title === editCvAnonym.initialTitle &&
+                          editCvAnonym.date === editCvAnonym.initialDate &&
+                          editCvAnonym.company ===
+                            editCvAnonym.initialCompany &&
+                          'opacity-50 cursor-not-allowed',
+                        editCvLoading && 'opacity-50'
+                      )}
+                    >
+                      {editCvLoading && (
+                        <svg
+                          aria-hidden="true"
+                          role="status"
+                          className="inline w-6 h-6 animate-spin"
+                          viewBox="0 0 100 101"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                            fill="#E5E7EB"
+                          />
+                          <path
+                            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      )}
+                      <span>Mettre à jour</span>
+                    </button>
+                  </form>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {typeof editSyntheseAnonym.questionNumber === 'number' && (
+          <div className="fixed top-0 left-0 h-full w-full flex justify-center items-center p-4 rounded-xl bg-black/70 backdrop-blur-sm">
+            <div className="h-full w-full flex justify-center items-center">
+              <Card className="flex flex-col bg-gradient-to-br from-[#1F2437] via-[#161A2A] to-[#0A0E17] backdrop-blur-lg border-[#FF6B00]/10 shadow-[0_0_30px_rgba(255,107,0,0.1)]">
+                <div className="flex flex-col gap-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-medium text-white leading-relaxed">
+                      {
+                        syntheseLabels.find(
+                          (item) =>
+                            item.questionNumber ===
+                            editSyntheseAnonym.questionNumber
+                        )?.value
+                      }
+                    </h2>
+                    <i
+                      onClick={() =>
+                        setEditSyntheseAnonym(initialEditSyntheseAnonym)
+                      }
+                      className="h-8 w-8 flex justify-center items-center rounded-full hover:bg-white/10 cursor-pointer"
+                    >
+                      <X />
+                    </i>
+                  </div>
+
+                  <form
+                    onSubmit={handleEditSyntheseAnonym}
+                    className="flex-1 flex flex-col gap-4"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <textarea
+                        value={editSyntheseAnonym.value}
+                        onChange={(event) =>
+                          setEditSyntheseAnonym((prev) => ({
+                            ...prev,
+                            value: event.target.value,
+                          }))
+                        }
+                        className={`flex-1 min-h-[14rem] min-w-[32rem] bg-[#0A0E17]/80 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-400 outline-none focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/30 focus:border-[#FF6B00]/20 resize-none ${
+                          editSyntheseLoading
+                            ? 'opacity-50'
+                            : 'hover:bg-[#0A0E17]/90'
+                        }`}
+                        placeholder={editSyntheseAnonym.initialValue}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={
+                        editSyntheseLoading ||
+                        editSyntheseAnonym.value.trim().length === 0 ||
+                        editSyntheseAnonym.value ===
+                          editSyntheseAnonym.initialValue
+                      }
+                      className={classNames(
+                        'w-full rounded-lg flex items-center justify-center gap-2 py-3 text-lg font-medium bg-gradient-to-r from-[#FF6B00] to-[#FF8124] text-white hover:from-[#FF8124] hover:to-[#FF9346] shadow-lg shadow-[#FF6B00]/20',
+                        editSyntheseAnonym.value ===
+                          editSyntheseAnonym.initialValue &&
+                          'opacity-50 cursor-not-allowed',
+                        editSyntheseLoading && 'opacity-50'
+                      )}
+                    >
+                      {editSyntheseLoading && (
+                        <svg
+                          aria-hidden="true"
+                          role="status"
+                          className="inline w-6 h-6 animate-spin"
+                          viewBox="0 0 100 101"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                            fill="#E5E7EB"
+                          />
+                          <path
+                            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      )}
+                      <span>Mettre à jour</span>
+                    </button>
+                  </form>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {!showHeader && (
           <footer className="py-4 px-6 text-center text-gray-400 text-sm">

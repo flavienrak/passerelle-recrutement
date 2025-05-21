@@ -5,7 +5,7 @@ import { useNavigate, useParams, Outlet, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { InterviewInterface } from '../interfaces/Interview.interface';
+import { AnswerInterviewInterface } from '../interfaces/AnswerInterview.interface';
 import { updateUserReducer } from '../redux/slices/user.slice';
 import { CvInterface } from '../interfaces/Cv.interface';
 
@@ -32,11 +32,11 @@ export default function UserLayout() {
           const interviewsDocSnap = await getDoc(doc(db, 'interviews', userId));
 
           if (interviewsDocSnap.exists()) {
-            const data: { answers: InterviewInterface[] } =
+            const data: { answers: AnswerInterviewInterface[] } =
               interviewsDocSnap.data();
 
             if (Array.isArray(data.answers)) {
-              dispatch(updateUserReducer({ interviews: data.answers }));
+              dispatch(updateUserReducer({ interviews: data }));
             }
           }
 

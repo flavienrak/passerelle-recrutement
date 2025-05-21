@@ -76,10 +76,10 @@ export default function Previsualisation({
   });
 
   React.useEffect(() => {
-    if (persistInfos.userId && userId) {
-      setEditable(persistInfos.userId === userId);
+    if (userId) {
+      setEditable(true && showHeader);
     }
-  }, [persistInfos.userId, userId]);
+  }, [userId, showHeader]);
 
   React.useEffect(() => {
     if (tests.answers && tests.answers.length > 0) {

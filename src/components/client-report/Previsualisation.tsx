@@ -190,9 +190,9 @@ export default function Previsualisation({
 
       if (
         editCvAnonym.label === 'presentation' &&
-        cv.presentation !== editCvAnonym.value.trim()
+        cv.presentation_anonym !== editCvAnonym.value.trim()
       ) {
-        updatedCv = { ...cv, presentation: editCvAnonym.value.trim() };
+        updatedCv = { ...cv, presentation_anonym: editCvAnonym.value.trim() };
       } else if (editCvAnonym.label === 'diplomes' && cv.diplomes_anonym) {
         const actualDiplome = cv.diplomes_anonym.find(
           (item, index) => index === editCvAnonym.index

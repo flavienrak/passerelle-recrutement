@@ -17,12 +17,13 @@ import {
   diplomeAnonym,
   experienceAnonym,
   formationAnonym,
+  presentationAnonym,
   responseAnonym,
 } from '../lib/prompts';
 import { interviewQuestions } from '../lib/constants';
 import { CvInterface } from '../interfaces/Cv.interface';
 import { updateUserReducer } from '../redux/slices/user.slice';
-import { gpt3 } from '../lib/openai';
+import { gpt3, gpt4 } from '../lib/openai';
 
 function sanitizeOrder<T extends { content: string; order: any }[]>(
   array: T
@@ -72,7 +73,7 @@ export default function InterviewQuestionsPage() {
       ) {
         (async () => {
           // CV PROCESSING
-          const openaiResponse = await gpt3([
+          const openaiResponse = await gpt4([
             { role: 'system', content: cvProcessing.trim() },
             {
               role: 'user',
@@ -98,7 +99,7 @@ export default function InterviewQuestionsPage() {
             await setDoc(
               doc(db, 'cvs', userId),
               {
-                presentation: itemData.presentation[0].content,
+                presentation: itemData.presentation[0].content ?? '',
                 diplomes: itemData.diplomes,
                 formations: itemData.formations,
                 competences: itemData.competences,
@@ -108,6 +109,10 @@ export default function InterviewQuestionsPage() {
             );
 
             let messageContent = 'Contenu du CV :\n';
+
+            if (itemData.presentation && itemData.presentation.length > 0) {
+              messageContent += `\nPrésentation :\n${itemData.presentation[0].content}`;
+            }
 
             if (itemData.diplomes && itemData.diplomes.length > 0) {
               messageContent += `\nDiplômes :\n${itemData.diplomes
@@ -133,6 +138,26 @@ export default function InterviewQuestionsPage() {
                 .join('\n')}`;
             }
 
+            // PRESENTATION ANONYME
+            if (itemData.presentation.length > 0) {
+              const openaiItemResponse = await gpt3([
+                { role: 'system', content: presentationAnonym.trim() },
+                { role: 'user', content: messageContent.trim() },
+              ]);
+
+              if (openaiItemResponse.content) {
+                const itemData: { content: string } = extractJson(
+                  openaiItemResponse.content
+                );
+
+                await setDoc(
+                  doc(db, 'cvs', userId),
+                  { presentation_anonym: itemData.content },
+                  { merge: true }
+                );
+              }
+            }
+
             // DIPLOMES ANONYME
             if (itemData.diplomes.length > 0) {
               const openaiItemResponse = await gpt3([
@@ -153,7 +178,7 @@ export default function InterviewQuestionsPage() {
               }
             }
 
-            // FORMATION ANONYME
+            // FORMATIONS ANONYME
             if (itemData.formations.length > 0) {
               const openaiItemResponse = await gpt3([
                 { role: 'system', content: formationAnonym.trim() },

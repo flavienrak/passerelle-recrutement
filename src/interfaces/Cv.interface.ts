@@ -1,6 +1,7 @@
 export interface CvInterface {
   cvContent: string;
   presentation: string;
+  presentation_anonym: string;
   diplomes: { content: string; order: number }[];
   formations: { content: string; order: number }[];
   competences: { content: string; order: number }[];

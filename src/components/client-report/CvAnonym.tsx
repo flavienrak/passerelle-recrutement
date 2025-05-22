@@ -43,14 +43,14 @@ export default function CvAnonym({
         }
       >
         <div className="flex gap-2 group">
-          <p className="whitespace-pre-line">{cv.presentation}</p>
+          <p className="whitespace-pre-line">{cv.presentation_anonym}</p>
           {editable && (
             <button
               onClick={() =>
                 setEditCvAnonym({
                   label: 'presentation',
-                  initialValue: cv.presentation,
-                  value: cv.presentation,
+                  initialValue: cv.presentation_anonym,
+                  value: cv.presentation_anonym,
                 })
               }
               className="h-max flex justify-center items-center gap-2 py-1 px-3 text-sm rounded-md bg-blue-500/20 hover:bg-blue-500/30 opacity-0 group-hover:opacity-100 cursor-pointer"

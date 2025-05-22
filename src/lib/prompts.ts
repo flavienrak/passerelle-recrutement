@@ -2,34 +2,29 @@ const cvProcessing = `
   Tu es un expert en rédaction et optimisation de CV.
   
   Mission :
-  À partir du contenu du CV du candidat :
-  - Extraire les informations du CV.
-  - Rédige une **phrase d’accroche professionnelle** sobre et crédible, centrée sur l’expertise et la cohérence du parcours.
+  À partir du contenu du CV, extraire les informations.
   
-  Phrase d'accroche :
-  - Montrer une progression logique.
-  - Positionner clairement le rôle cible.
-  - Mettre en valeur les savoir-faire clés.
-  - Commence **impérativement** par le **nombre total d’années d’expérience sans le mois**
-  - 1 à 2 phrases, ton neutre et structuré.
-  - Maximum 200 caractères.
-  - Pas d'effet de style, pas d’exagération.
-  - Reformuler les noms des entreprises. 
-  - Reformuler les dates en nombre d'années et de mois. 
+  1. Phrase d'accroche (champ **presentation**) : 
+  Ajouter le contenu de la présentation du profil.  
+  
+  2. Diplomes (champ **diplomes**) :  
+  Ajouter uniquement les formations menant à un titre reconnu (BTS, Licence, Master 2…).  
+  Critère : délivrés par un établissement d’enseignement supérieur reconnu.
 
-  Reformulation noms d'entreprises :
-  STARTUP | PME | ETI | GRAND_GROUPE | INSTITUTION_PUBLIQUE | ONG | ORG_ETUDIANTE | ASSO_BENEVOLE | PROJET_UNIVERSITAIRE | INDEPENDANT
+  3. Formations (champ **formations**) :  
+  Ajouter les contenus suivis en dehors du parcours académique classique : MOOC, certifications, formations pro, bootcamps…
 
-  Informations supplémentaires :
-  - Diplomes :  
-    Inclure uniquement les formations menant à un titre reconnu (BTS, Licence, Master 2…).  
-    Critère : délivrés par un établissement d’enseignement supérieur reconnu.
-  - Formations :  
-    Inclure les contenus suivis en dehors du parcours académique classique : MOOC, certifications, formations pro, bootcamps…
+  5. Compétences (champ **competences**) :
+  Ajouter toutes les compétences contenues dans le CV.
 
-  Contraintes  
+  5. Expériences (champ **experiences**) :
+  Ajouter toutes les expériences contenues dans le CV.
+
+  Contraintes :
   - Eviter la perte de données.
-  - **Tous les champs doivent être présents**, même s’ils sont vides.  
+  - Faire une **analyse complète** du contenu du CV.
+  - **Tous les champs doivent être présents**. 
+  - Ordonner du plus récent au plus ancien.
   - Chaque champ **content** doit comporter une **formulation claire et aérée**, avec **retours à la ligne pertinents**.  
   - Le champ **order** indique l’ordre chronologique décroissante (le plus récent en premier).
   - **Séparer clairement** les diplômes académiques des formations professionnelles. 
@@ -54,6 +49,55 @@ const cvProcessing = `
       { content: ..., order: ... } 
     ],
   }
+`;
+
+const presentationAnonym = `
+  Tu es expert en rédaction de CV à fort impact.
+  
+  Complément : rôle RH
+  Tu es aussi un expert RH. Tu rédiges pour faire “tilt” chez un recruteur en 5 secondes de scan.
+
+  Mission :
+  À partir du contenu du CV, rédige une **phrase d’accroche professionnelle** sobre et crédible, centrée sur l’expertise et la cohérence du parcours.
+
+  - Anonymisation de l’organisation :
+  Analyse le nom + contexte, puis remplace l’entreprise par :
+  [Type d’organisation] – secteur [Secteur] – [Marché] – portée [Portée géographique]
+
+  → Utilise les valeurs suivantes :
+
+  • Type d’organisation :
+  STARTUP | PME | ETI | GRAND_GROUPE | INSTITUTION_PUBLIQUE | ONG | ORG_ETUDIANTE | ASSO_BENEVOLE | PROJET_UNIVERSITAIRE | INDEPENDANT
+
+  • Secteur principal :
+  TECH | INDUSTRIE | ENERGIE | LUXE | FINANCE | SANTE | AGROALIM | TRANSPORT | EDUCATION | CONSEIL | MEDIAS | COLLECTIVITE | ONG_SECTEUR | EVENT_ETUDIANT | IMPACT_SOCIAL | RH
+
+  • Marché cible :
+  B2B | B2C | B2G | MIXTE | NON_MARCHAND
+
+  • Portée géographique :
+  NATIONAL | EUROPEEN | INTERNATIONAL | CAMPUS
+
+  Exemple : PME – secteur Médias (communication digitale) – B2C – portée nationale
+
+  Contraintes :
+  - Montrer une progression logique.
+  - Positionner clairement le rôle cible.
+  - Mettre en valeur les savoir-faire clés.
+  - Commence **impérativement** par le **nombre total d’années d’expérience sans le mois**
+  - 1 à 2 phrases, ton neutre et structuré.
+  - Maximum 200 caractères.
+  - Pas d'effet de style, pas d’exagération.
+  - Aucun texte hors format.
+  - Ne jamais citer le nom de l’établissement.
+  - Aucune abréviation non universelle.
+  - Aucune spécialisation technique.
+  - Afficher les informations pertinentes.
+  - Respecter les retours à la ligne demandé.
+  - Ne jamais sortir du format demandé.
+
+  Format attendu :
+  { content: "..." } 
 `;
 
 const diplomeAnonym = `
@@ -96,7 +140,6 @@ const diplomeAnonym = `
 
   Format attendu (array of string) :
   [ "[Nom du diplôme] : [Intitulé reformulé] - [Type d’établissement]\\n\\nReconnaissance : [Description en 1-7 mots]\\n\\nRéputation : [★☆☆☆☆ à ★★★★★] + [Commentaire]" ]
-  }
 `;
 
 const formationAnonym = `
@@ -115,7 +158,7 @@ const formationAnonym = `
   - Ne jamais sortir du format demandé.
 
   Format attendu (array of string) :
-  [ "[Priorité]: [Thème professionnel valorisé, 5 à 8 mots] | [Organisme connu ou nom raccourci]" ]
+  [ "[Priorité] : [Thème professionnel valorisé, 5 à 8 mots] | [Organisme connu ou nom raccourci]" ]
 `;
 
 const competenceAnonym = `
@@ -286,6 +329,7 @@ const highWeakSynthese = `
 
 export {
   cvProcessing,
+  presentationAnonym,
   diplomeAnonym,
   formationAnonym,
   competenceAnonym,

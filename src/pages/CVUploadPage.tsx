@@ -89,7 +89,6 @@ export default function CvUploadPage() {
           id: userId,
           email,
           // cvUrl,
-          cvContent: cvContent.trim(),
         },
         { merge: true }
       );
@@ -98,6 +97,7 @@ export default function CvUploadPage() {
         doc(db, 'cvs', userId),
         {
           id: userId,
+          cvContent: cvContent.trim(),
           acceptConditions: true,
           completedSteps: { cvUploaded: true, anonymisation: false },
         },
